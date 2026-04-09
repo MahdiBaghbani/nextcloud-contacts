@@ -5,6 +5,8 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { t } from '@nextcloud/l10n'
+
 export default class OcmInvite {
 
 	_data: any = {};
@@ -23,7 +25,7 @@ export default class OcmInvite {
 	}
 
 	get key(): string {
-		return this._data.recipientEmail
+		return this._data.token
 	}
 
 	get token(): string {
@@ -38,12 +40,23 @@ export default class OcmInvite {
 		return this._data.recipientEmail
 	}
 
+	get recipientName(): string {
+		return this._data.recipientName
+	}
+
 	get createdAt(): number {
 		return this._data.createdAt
 	}
 
 	get expiredAt(): number {
 		return this._data.expiredAt
+	}
+
+	/**
+	 * Display name for the invite (label > email > fallback)
+	 */
+	get displayName(): string {
+		return this.recipientName || this.recipientEmail || t('contacts', 'Link-only invite')
 	}
 
 	/**
@@ -54,6 +67,8 @@ export default class OcmInvite {
 	 * @return string
 	 */
 	get searchData() {
-		return this.recipientEmail
+		// Search by label, email, or fallback text
+		const parts = [this.recipientName, this.recipientEmail].filter(Boolean)
+		return parts.length > 0 ? parts.join(' ') : t('contacts', 'Link-only invite')
 	}
 }

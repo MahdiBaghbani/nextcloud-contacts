@@ -14,57 +14,69 @@
 		</NcEmptyContent>
 
 		<template v-else>
-			<div class="contact-header__infos">
-				<h2>
-					{{ t('contacts', 'OCM invite') }}
-				</h2>
-				<div class="invitation-recipientemail property__row">
-					<div class="property__label">
-						<span>{{ t('contacts', 'Sent to') }}:</span>
+			<div class="invite-details">
+				<h2>{{ t('contacts', 'OCM invite') }}</h2>
+				
+				<div class="invite-info">
+					<div v-if="invite.recipientName" class="info-row">
+						<span class="info-label">{{ t('contacts', 'Label') }}</span>
+						<span class="info-value" data-testid="ocm-invite-detail-label">{{ invite.recipientName }}</span>
 					</div>
-					<div class="property__value">
-						<input id="invite-recipientemail" readonly="readonly" v-model="invite.recipientEmail" type="text"
-							name="recipientemail">
+					<div class="info-row">
+						<span class="info-label">{{ t('contacts', 'Sent to') }}</span>
+						<span class="info-value" data-testid="ocm-invite-detail-email">{{ invite.recipientEmail || t('contacts', 'No email (link-only)') }}</span>
 					</div>
-				</div>
-				<div class="invitation-createdat property__row">
-					<div class="property__label">
-						<span>{{ t('contacts', 'Sent at') }}:</span>
+					<div class="info-row">
+						<span class="info-label">{{ t('contacts', 'Created') }}</span>
+						<span class="info-value">{{ formatDate(invite.createdAt) }}</span>
 					</div>
-					<div class="property__value">
-						<input id="invite-createdat" readonly="readonly" :value="formatDate(invite.createdAt)" type="text"
-							name="createdat">
-					</div>
-				</div>
-				<div class="invitation-expiredat property__row">
-					<div class="property__label">
-						<span>{{ t('contacts', 'Expires at') }}:</span>
-					</div>
-					<div class="property__value">
-						<input id="invite-expiredat" readonly="readonly" :value="formatDate(invite.expiredAt)" type="text"
-							name="expiredat">
+					<div class="info-row">
+						<span class="info-label">{{ t('contacts', 'Expires') }}</span>
+						<span class="info-value">{{ formatDate(invite.expiredAt) }}</span>
 					</div>
 				</div>
-				<div class="invitation-token property__row">
-					<div class="property__label">
-						<span>{{ t('contacts', 'Token') }}:</span>
-					</div>
-					<div class="property__value">
-						<input id="invite-token" readonly="readonly" v-model="invite.token" type="text" name="token">
+
+				<!-- Share buttons -->
+				<div class="share-section" data-testid="ocm-invite-share-section">
+					<h3>{{ t('contacts', 'Share invite') }}</h3>
+					<p class="share-hint">{{ t('contacts', 'The invite link is the easiest way to share. Invite codes are for manual acceptance.') }}</p>
+					<div class="share-buttons">
+						<NcButton type="secondary" @click="copyToClipboard(wayfLink, 'Invite link')" data-testid="ocm-invite-link-copy-btn">
+							<template #icon>
+								<ContentCopyIcon :size="20" />
+							</template>
+							{{ t('contacts', 'Copy invite link') }}
+						</NcButton>
+						<NcButton type="secondary" @click="copyToClipboard(plainInviteString, 'Invite code')" data-testid="ocm-invite-token-copy-btn">
+							<template #icon>
+								<ContentCopyIcon :size="20" />
+							</template>
+							{{ t('contacts', 'Copy invite code') }}
+						</NcButton>
+						<NcButton v-if="encodedCopyButtonEnabled" type="secondary" @click="copyToClipboard(base64InviteString, 'Encoded invite')" data-testid="ocm-invite-base64-copy-btn">
+							<template #icon>
+								<ContentCopyIcon :size="20" />
+							</template>
+							{{ t('contacts', 'Copy encoded invite') }}
+						</NcButton>
 					</div>
 				</div>
-				<div class="invite-revoke__buttons-row">
-					<NcButton type="secondary" @click="onResend">
+
+				<!-- Action buttons -->
+				<div class="action-buttons">
+					<NcButton v-if="invite.recipientEmail"
+						type="primary"
+						@click="onResend"
+						data-testid="ocm-invite-resend-btn">
 						<template #icon>
 							<CheckIcon :size="20" />
 						</template>
-						{{ t('contacts', 'Resend') }}
+						{{ t('contacts', 'Resend email') }}
 					</NcButton>
-					<NcButton type="secondary" @click="onRevoke">
-						<template #icon>
-							<CheckIcon :size="20" />
-						</template>
-						{{ t('contacts', 'Revoke') }}
+					<NcButton type="error"
+						@click="onRevoke"
+						data-testid="ocm-invite-revoke-btn">
+						{{ t('contacts', 'Revoke invite') }}
 					</NcButton>
 				</div>
 			</div>
@@ -79,8 +91,11 @@ import {
 	NcButton,
 	NcEmptyContent,
 } from '@nextcloud/vue'
+import { showSuccess, showError } from '@nextcloud/dialogs'
+import { loadState } from '@nextcloud/initial-state'
 
 import CheckIcon from 'vue-material-design-icons/Check.vue'
+import ContentCopyIcon from 'vue-material-design-icons/ContentCopy.vue'
 import IconAccountSwitchOutline from 'vue-material-design-icons/AccountSwitchOutline.vue'
 import moment from '@nextcloud/moment'
 
@@ -91,6 +106,7 @@ export default {
 
 	components: {
 		CheckIcon,
+		ContentCopyIcon,
 		IconAccountSwitchOutline,
 		NcAppContentDetails,
 		NcButton,
@@ -104,9 +120,35 @@ export default {
 		},
 	},
 
+	data() {
+		const config = loadState('contacts', 'ocmInvitesConfig', {
+			optionalMail: false,
+			ccSender: true,
+			encodedCopyButton: false,
+		})
+		return {
+			encodedCopyButtonEnabled: config.encodedCopyButton,
+		}
+	},
+
 	computed: {
 		invite() {
 			return this.$store.getters.getOcmInvite(this.inviteKey)
+		},
+		provider() {
+			return window.location.host
+		},
+		wayfLink() {
+			if (!this.invite) return ''
+			return `https://${this.provider}/index.php/apps/contacts/wayf?token=${this.invite.token}`
+		},
+		plainInviteString() {
+			if (!this.invite) return ''
+			return `${this.invite.token}@${this.provider}`
+		},
+		base64InviteString() {
+			if (!this.invite) return ''
+			return btoa(this.plainInviteString)
 		},
 	},
 
@@ -114,6 +156,14 @@ export default {
 		formatDate(date) {
 			// moment takes milliseconds
 			return moment(date*1000).format(dateFormat)
+		},
+		async copyToClipboard(text, label) {
+			try {
+				await navigator.clipboard.writeText(text)
+				showSuccess(t('contacts', '{label} copied to clipboard', { label }))
+			} catch (error) {
+				showError(t('contacts', 'Failed to copy to clipboard'))
+			}
 		},
 		async onResend() {
 			try {
@@ -137,25 +187,79 @@ export default {
 	margin-top: 5em;
 }
 
-.contact-header__infos {
+.invite-details {
+	padding: 1.5em;
+	max-width: 600px;
+
 	h2 {
-	display: flex;
-	flex: 0 1 auto;
-	justify-content: flex-end;
-	width: 200px;
-	min-width: 0;
-	padding-top: 30px;
-}
-	button.button-vue {
-		display: inline-flex;
-		margin-inline-start: 1em;
+		margin: 0 0 1.5em 0;
+		font-size: 1.4em;
+		font-weight: 600;
 	}
-	margin-inline-start: 1em;
+
+	h3 {
+		margin: 0 0 0.75em 0;
+		font-size: 1em;
+		font-weight: 600;
+		color: var(--color-text-maxcontrast);
+	}
 }
 
-.invitation-recipientemail.property__row {
-	.property__label, #invite-recipientemail {
-		font-weight: bold;
+.invite-info {
+	margin-bottom: 2em;
+
+	.info-row {
+		display: flex;
+		padding: 0.6em 0;
+		border-bottom: 1px solid var(--color-border-dark);
+
+		&:last-child {
+			border-bottom: none;
+		}
+
+		.info-label {
+			flex: 0 0 100px;
+			font-weight: 500;
+			color: var(--color-text-maxcontrast);
+		}
+
+		.info-value {
+			flex: 1;
+			word-break: break-word;
+		}
+	}
+}
+
+.share-section {
+	margin-bottom: 1.5em;
+	padding: 1em;
+	background: var(--color-background-dark);
+	border-radius: var(--border-radius-large);
+
+	.share-hint {
+		font-size: 0.85em;
+		color: var(--color-text-maxcontrast);
+		margin-bottom: 0.75em;
+	}
+
+	.share-buttons {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5em;
+
+		:deep(.button-vue) {
+			width: 100%;
+			justify-content: flex-start;
+		}
+	}
+}
+
+.action-buttons {
+	display: flex;
+	gap: 0.5em;
+
+	@media (max-width: 400px) {
+		flex-direction: column;
 	}
 }
 </style>

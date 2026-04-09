@@ -173,6 +173,7 @@ import IconAccountArrowDownOutline from 'vue-material-design-icons/AccountArrowD
 import IconCancel from 'vue-material-design-icons/Cancel.vue'
 import IconCheck from 'vue-material-design-icons/Check.vue'
 import isOcmInvitesEnabled from '../services/isOcmInvitesEnabled.js'
+import { generateUrl } from '@nextcloud/router'
 import OcmInviteAccept from '../components/Ocm/OcmInviteAccept.vue'
 import OcmInviteForm from '../components/Ocm/OcmInviteForm.vue'
 import OcmAcceptForm from '../components/Ocm/OcmAcceptForm.vue'
@@ -233,7 +234,7 @@ const _default = {
 			isOcmInvitesEnabled,
 			inviteToken: inviteToken,
 			inviteProvider: inviteProvider,
-			ocmInvite: { email: '', message: '' },
+			ocmInvite: { email: '', message: '', note: '' },
 		}
 	},
 
@@ -627,15 +628,13 @@ const _default = {
 		 */
 		async acceptInvite() {
 			try {
-				const response = await axios.patch(
-					'/apps/contacts/ocm/invitations/' + inviteToken + '/accept',
-					{
-						provider: inviteProvider,
-					},
-				)
+				const url = generateUrl('/apps/contacts/ocm/invitations/{token}/accept', { token: inviteToken })
+				const response = await axios.patch(url, {
+					provider: inviteProvider,
+				})
 				window.open(response.data.contact, '_self')
 			} catch (error) {
-				const message = error.response.data.message
+				const message = error.response?.data?.message || 'Unknown error'
 				logger.error('Could not accept invite: ' + message, { error })
 				showError(t('contacts', message))
 			} finally {
@@ -644,15 +643,13 @@ const _default = {
 		},
 		async handleAccept({ provider, token }) {
 			try {
-				const response = await axios.patch(
-					'/apps/contacts/ocm/invitations/' + token + '/accept',
-					{
-						provider: provider,
-					},
-				)
+				const url = generateUrl('/apps/contacts/ocm/invitations/{token}/accept', { token })
+				const response = await axios.patch(url, {
+					provider,
+				})
 				window.open(response.data.contact, '_self')
 			} catch (error) {
-				const message = error.response.data.message
+				const message = error.response?.data?.message || 'Unknown error'
 				logger.error('Could not accept invite: ' + message, { error })
 				showError(t('contacts', message))
 			} finally {
@@ -666,6 +663,11 @@ const _default = {
 			this.showNewInviteForm = true
 		},
 		async sendNewInvite() {
+			// Validate: if user checked "send via email", email must be filled
+			if (this.ocmInvite.sendEmail && !this.ocmInvite.email?.trim()) {
+				showError(t('contacts', 'Please enter an email address or uncheck "Send invite via email"'))
+				return
+			}
 			try {
 				const response = await this.$store.dispatch(
 					'newOcmInvite',

@@ -62,7 +62,13 @@ const actions = {
     },
 	async newOcmInvite(context, invite) {
 		const url = generateUrl('/apps/contacts/ocm/invitations')
-		const response = await axios.post(url, invite)
+		const payload = {
+			email: invite.email || '',
+			message: invite.message || '',
+			note: invite.note || '',
+			ccSender: invite.ccSender || false,
+		}
+		const response = await axios.post(url, payload)
 			.then(response => {
 				return response
 			})

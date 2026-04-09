@@ -7,8 +7,9 @@
 		<ListItem :id="id"
 			:key="source.key"
 			class="list-item-style envelope"
-			:name="source.recipientEmail"
-			:to="{ name: ROUTE_NAME_OCM_INVITE, params: { selectedInvite: source.key } }">
+			:name="source.displayName"
+			:to="{ name: ROUTE_NAME_OCM_INVITE, params: { selectedInvite: source.key } }"
+			:data-testid="`ocm-invite-item-${source.token}`">
 		</ListItem>
 	</div>
 </template>
@@ -50,7 +51,8 @@ export default {
 	computed: {
 		// usable and valid html id for scrollTo
 		id() {
-			return this.source.key.slice(0, -2)
+			// Token is UUID format, use with prefix for valid HTML ID
+			return `invite-${this.source.key}`
 		},
 	},
 	methods: {

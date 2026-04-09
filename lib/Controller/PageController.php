@@ -70,6 +70,7 @@ class PageController extends Controller {
 
 		$isTalkVersionCompatible = $this->compareVersion->isCompatible($talkVersion ? $talkVersion : '0.0.0', 2);
 		$isOcmInvitesEnabled = $this->federatedInvitesService->isOcmInvitesEnabled();
+		$ocmInvitesConfig = $this->federatedInvitesService->getOcmInvitesConfig();
 
 		$this->initialState->provideInitialState('isGroupSharingEnabled', $isGroupSharingEnabled);
 		$this->initialState->provideInitialState('locales', $locales);
@@ -81,6 +82,7 @@ class PageController extends Controller {
 		$this->initialState->provideInitialState('isCirclesEnabled', $isCirclesEnabled && $isCircleVersionCompatible);
 		$this->initialState->provideInitialState('isTalkEnabled', $isTalkEnabled && $isTalkVersionCompatible);
 		$this->initialState->provideInitialState('isOcmInvitesEnabled', $isOcmInvitesEnabled);
+		$this->initialState->provideInitialState('ocmInvitesConfig', $ocmInvitesConfig);
 
 		Util::addStyle(Application::APP_ID, 'contacts-main');
 		Util::addScript(Application::APP_ID, 'contacts-main');

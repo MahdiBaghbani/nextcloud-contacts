@@ -20,10 +20,10 @@
     <div class="ocm_manual_inputs">
       <NcTextField
         v-model="invite"
-        label="Invite"
+        :label="t('contacts', 'Invite code or link')"
         type="text"
         :error="Boolean(error)"
-        :helper-text="error || 'Paste `token@provider` or the full invite string'"
+        :helper-text="error || t('contacts', 'Paste an invite link, invite code (token@provider), or encoded invite')"
       />
 
       <div class="ocm_manual_buttons">
@@ -61,7 +61,8 @@ export default {
   },
   methods: {
     parseInvite(str) {
-      function tryParse(s) {
+      // Try to parse token@provider format
+      function tryParseTokenProvider(s) {
         const idx = s.lastIndexOf("@");
         if (idx === -1) return null;
         const token = s.slice(0, idx).trim();
@@ -70,23 +71,41 @@ export default {
         return { provider, token };
       }
 
-      let s = String(str || "").trim();
-      let result = tryParse(s);
-
-      if (!result) {
-        // Try base64 decoding and parse again
+      // Try to parse as URL with token query parameter
+      function tryParseUrl(s) {
         try {
-          const decoded = atob(s);
-          result = tryParse(decoded);
+          const url = new URL(s);
+          const token = url.searchParams.get('token');
+          if (!token) return null;
+          // Provider from query param or URL host
+          const provider = url.searchParams.get('provider') || url.host;
+          if (!provider) return null;
+          return { provider, token };
         } catch (e) {
-          // Ignore decoding errors, will throw below if still invalid
+          return null;
         }
       }
 
-      if (!result) {
-        throw new Error("Invite must contain '@' separating token and provider, even after base64 decoding");
+      let s = String(str || "").trim();
+      
+      // 1. Try token@provider format first
+      let result = tryParseTokenProvider(s);
+      if (result) return result;
+
+      // 2. Try base64 decoding then token@provider
+      try {
+        const decoded = atob(s);
+        result = tryParseTokenProvider(decoded);
+        if (result) return result;
+      } catch (e) {
+        // Not base64, continue
       }
-      return result;
+
+      // 3. Try as URL
+      result = tryParseUrl(s);
+      if (result) return result;
+
+      throw new Error("Could not parse invite");
     },
 
     accept() {
@@ -95,7 +114,7 @@ export default {
         const { provider, token } = this.parseInvite(this.invite);
         this.$emit("accept", { provider, token });
       } catch (e) {
-        this.error = "Invalid invite format";
+        this.error = t("contacts", "This invite does not look valid. Check that you copied it completely or ask the sender to generate a new one.");
         this.$emit("parse-error", { message: this.error });
       }
     },

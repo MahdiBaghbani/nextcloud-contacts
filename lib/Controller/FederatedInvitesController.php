@@ -160,25 +160,30 @@ class FederatedInvitesController extends PageController {
 	/**
 	 * Creates an invitation to exchange contact info with the remote user.
 	 *
-	 * @param string $emailAddress the recipient's (remote user's) email address to send the invitation to.
-	 * @param string $message optional message to send with the invitation.
+	 * @param string $email the recipient email address to send the invitation to (optional)
+	 * @param string $message the optional message to send with the invitation
+	 * @param string $note optional note/label for identifying the invite
+	 * @param bool $ccSender whether to send a copy of the invite to the sender
 	 * @return JSONResponse with data signature ['invite' | 'message'] - the invite url or an error message in case of error.
 	 */
 	#[NoAdminRequired]
-	public function createInvite(string $email, ?string $message): JSONResponse {
-		if (!isset($email)) {
-			return new JSONResponse(['message' => 'Recipient email is required'], Http::STATUS_BAD_REQUEST);
+	public function createInvite(string $email = '', string $message = '', string $note = '', bool $ccSender = false): JSONResponse {
+		// Enforce email required when optional mail is disabled
+		if (empty($email) && !$this->federatedInvitesService->isOptionalMailEnabled()) {
+			return new JSONResponse(['message' => $this->il10->t('Email address is required.')], Http::STATUS_BAD_REQUEST);
 		}
 
-		// check for existing open invite for the specified email and return 'invite exists'
+		// check for existing open invite for the specified email, only if email provided
 		$uid = $this->userSession->getUser()->getUID();
-		$existingInvites = $this->federatedInviteMapper->findOpenInvitesByRecipientEmail(
-			$uid,
-			$email,
-		);
-		if (count($existingInvites) > 0) {
-			$this->logger->error("An open invite already exists for user with uid $uid and for recipient email $email", ['app' => Application::APP_ID]);
-			return new JSONResponse(['message' => $this->il10->t('An open invite already exists.')], Http::STATUS_CONFLICT);
+		if (!empty($email)) {
+			$existingInvites = $this->federatedInviteMapper->findOpenInvitesByRecipientEmail(
+				$uid,
+				$email,
+			);
+			if (count($existingInvites) > 0) {
+				$this->logger->error("An open invite already exists for user with uid $uid and for recipient email $email", ['app' => Application::APP_ID]);
+				return new JSONResponse(['message' => $this->il10->t('An open invite already exists.')], Http::STATUS_CONFLICT);
+			}
 		}
 
 		$invite = new FederatedInvite();
@@ -188,7 +193,13 @@ class FederatedInvitesController extends PageController {
 		// created-/expiredAt in seconds
 		$invite->setCreatedAt($this->timeFactory->now()->getTimestamp());
 		$invite->setExpiredAt($this->federatedInvitesService->getInviteExpirationDate($invite->getCreatedAt()));
-		$invite->setRecipientEmail($email);
+		if (!empty($email)) {
+			$invite->setRecipientEmail($email);
+		}
+		// Store note in recipientName field (used as label until invite is accepted)
+		if (!empty($note)) {
+			$invite->setRecipientName($note);
+		}
 		$invite->setAccepted(false);
 		try {
 			$this->federatedInviteMapper->insert($invite);
@@ -198,22 +209,34 @@ class FederatedInvitesController extends PageController {
 		}
 
 		$senderProvider = $this->federatedInvitesService->getProviderFQDN();
-		/** @var JSONResponse */
-		$response = $this->sendEmail($token, $senderProvider, $email, $message);
-		if ($response->getStatus() !== Http::STATUS_OK) {
-			// delete invite in case sending the email has failed
-			try {
-				$this->federatedInviteMapper->delete($invite);
-			} catch (Exception $e) {
-				$this->logger->error("An unexpected error occurred deleting invite with token $token. Stacktrace: " . $e->getTraceAsString(), ['app' => Application::APP_ID]);
-				return new JSONResponse(['message' => 'An unexpected error occurred creating the invite.'], Http::STATUS_NOT_FOUND);
+
+		// Only send email if email address provided
+		if (!empty($email)) {
+			/** @var JSONResponse */
+			$response = $this->sendEmail($token, $senderProvider, $email, $message);
+			if ($response->getStatus() !== Http::STATUS_OK) {
+				// delete invite in case sending the email has failed
+				try {
+					$this->federatedInviteMapper->delete($invite);
+				} catch (Exception $e) {
+					$this->logger->error("An unexpected error occurred deleting invite with token $token. Stacktrace: " . $e->getTraceAsString(), ['app' => Application::APP_ID]);
+					return new JSONResponse(['message' => 'An unexpected error occurred creating the invite.'], Http::STATUS_NOT_FOUND);
+				}
+				return $response;
 			}
-			return $response;
+
+			// Send CC to sender if requested and enabled
+			if ($ccSender && $this->federatedInvitesService->isCcSenderEnabled()) {
+				$senderEmail = $this->userSession->getUser()->getEMailAddress();
+				if (!empty($senderEmail)) {
+					$this->sendCcEmail($token, $senderProvider, $senderEmail, $email, $message);
+				}
+			}
 		}
 
-		// the new invite url
+		// invite url, use token instead of email for routing
 		$inviteUrl = $this->urlGenerator->getAbsoluteURL(
-			$this->urlGenerator->linkToRoute('contacts.page.index') . 'ocm-invites/' . $email
+			$this->urlGenerator->linkToRoute('contacts.page.index') . 'ocm-invites/' . $token
 		);
 		return new JSONResponse(['invite' => $inviteUrl], Http::STATUS_OK);
 	}
@@ -252,7 +275,12 @@ class FederatedInvitesController extends PageController {
 			 */
 			$discovered = $this->discovery->discover($provider);
 			$capabilities = $discovered->getCapabilities();
-			if (in_array('invite-accepted', $capabilities)) {
+			// Accept both the canonical advertised capability and older aliases.
+			if (
+				in_array('invites', $capabilities, true)
+				|| in_array('invite-accepted', $capabilities, true)
+				|| in_array('/invite-accepted', $capabilities, true)
+			) {
 
 				$response = $this->discovery->requestRemoteOcmEndpoint(
 					null,
@@ -322,6 +350,12 @@ class FederatedInvitesController extends PageController {
 	#[NoAdminRequired]
 	public function resendInvite(string $token): JSONResponse {
 		$invite = $this->federatedInviteMapper->findByToken($token);
+
+		// Cannot resend if no email address
+		if (empty($invite->getRecipientEmail())) {
+			return new JSONResponse(['message' => $this->il10->t('Cannot resend: no email address')], Http::STATUS_BAD_REQUEST);
+		}
+
 		$sendDate = date('Y-m-d', $invite->getCreatedAt());
 		$invite->setCreatedAt($this->timeFactory->now()->getTimestamp());
 		$invite->setExpiredAt($this->federatedInvitesService->getInviteExpirationDate($invite->getCreatedAt()));
@@ -343,9 +377,9 @@ class FederatedInvitesController extends PageController {
 			return $response;
 		}
 
-		// the invite url
+		// the invite url, use token instead of email for routing
 		$inviteUrl = $this->urlGenerator->getAbsoluteURL(
-			$this->urlGenerator->linkToRoute('contacts.page.index') . 'ocm-invites/' . $invite->getRecipientEmail()
+			$this->urlGenerator->linkToRoute('contacts.page.index') . 'ocm-invites/' . $invite->getToken()
 		);
 		return new JSONResponse(['invite' => $inviteUrl], Http::STATUS_OK);
 	}
@@ -424,6 +458,51 @@ class FederatedInvitesController extends PageController {
 	}
 
 	/**
+	 * Sends a copy of the invite email to the sender.
+	 *
+	 * @param string $token the invite token
+	 * @param string $senderProvider this provider
+	 * @param string $senderAddress the sender's email address
+	 * @param string $recipientAddress the original recipient's email address
+	 * @param string $message the optional message included in the invite
+	 */
+	private function sendCcEmail(string $token, string $senderProvider, string $senderAddress, string $recipientAddress, string $message): void {
+		try {
+			$email = $this->mailer->createMessage();
+			$email->setTo([$senderAddress]);
+
+			$instanceName = $this->defaults->getName();
+			$initiatorDisplayName = $this->userSession->getUser()->getDisplayName();
+			$senderName = $this->il10->t(
+				'%1$s via %2$s',
+				[$initiatorDisplayName, $instanceName]
+			);
+			$email->setFrom([Util::getDefaultEmailAddress($instanceName) => $senderName]);
+			$subject = $this->il10->t('[Copy] Invite sent to %1$s', [$recipientAddress]);
+			$email->setSubject($subject);
+
+			$wayfEndpoint = $this->wayfProvider->getWayfEndpoint();
+			$inviteLink = "$wayfEndpoint?token=$token";
+			$encoded = base64_encode("$token@$senderProvider");
+
+			$header = $this->il10->t('This is a copy of the invite you sent to %1$s.<br><br>', [$recipientAddress]);
+			$inviteLinkNote = $this->il10->t('Invite link: %1$s<br>', [$inviteLink]);
+			$inviteDetails = $this->il10->t('Invite code: %1$s<br>Encoded invite: %2$s<br>', ["$token@$senderProvider", $encoded]);
+
+			$messageLineBreaksToHtml = str_replace("\n", '<br>', $message);
+			$messageSection = trim($message) === '' ? '' : "<br>Your message:<br>$messageLineBreaksToHtml<br>";
+
+			$body = "$header$messageSection$inviteLinkNote$inviteDetails";
+			$email->setHtmlBody($body);
+			$email->setPlainBody(strip_tags(str_replace(['<br>', '<br/>', '<br />'], "\n", $body)));
+
+			$this->mailer->send($email);
+		} catch (Exception $e) {
+			$this->logger->warning('Could not send CC email to sender: ' . $e->getMessage(), ['app' => Application::APP_ID]);
+		}
+	}
+
+	/**
 	 * @param string $token the invite token
 	 * @param string $senderProvider this provider
 	 * @param string $address the recipient email address to send the invitation to
@@ -449,27 +528,29 @@ class FederatedInvitesController extends PageController {
 			]
 		);
 		$email->setFrom([Util::getDefaultEmailAddress($instanceName) => $senderName]);
-		$subject = $this->il10->t('%1$s invites you to exchange cloud IDs', [$initiatorDisplayName]);
+		$subject = $this->il10->t('%1$s invites you to share contacts using your cloud account', [$initiatorDisplayName]);
 		$email->setSubject($subject);
 
 		$wayfEndpoint = $this->wayfProvider->getWayfEndpoint();
 		if (empty($wayfEndpoint)) {
 			$this->logger->error('Invalid WAYF endpoint (null).', ['app' => Application::APP_ID]);
-			return new JSONResponse(['message' => 'Could not sent invite.'], Http::STATUS_NOT_FOUND);
+			return new JSONResponse(['message' => 'Could not send invite.'], Http::STATUS_NOT_FOUND);
 		}
 		$inviteLink = "$wayfEndpoint?token=$token";
 
 		$this->logger->debug("message: $message : " . print_r($message, true));
 
-		$header = $this->il10->t('Hi there,<br><br>%1$s invites you to exchange cloud IDs.<br>', [$initiatorDisplayName]);
-		$inviteLinkNote = $this->il10->t('<br>To accept this invite use the following invite link: %1$s <br>There you will be requested to sign in at your Cloud Provider.<br>', [$inviteLink]);
-		$encoded = base64_encode("$token@$senderProvider");
-		$inviteDetails = $this->il10->t('<br>Details:<br>Invite string: %1$s<br>token: %2$s<br>provider: %3$s<br>', [$encoded, $token, $senderProvider]);
+		$header = $this->il10->t('Hi there,<br><br>%1$s invites you to share contact information using your cloud account.<br>', [$initiatorDisplayName]);
 
 		$messageLineBreaksToHtml = str_replace("\n", '<br>', $message);
-		$message = trim($message) === '' ? '' : "<br>---<br>$messageLineBreaksToHtml<br>---<br>";
+		$messageSection = trim($message) === '' ? '' : "<br>---<br>$messageLineBreaksToHtml<br>---<br>";
 
-		$body = "$header$message$inviteLinkNote$inviteDetails";
+		$inviteLinkNote = $this->il10->t('<br>To accept this invite, click the link below and sign in with your cloud provider:<br><br><a href="%1$s">%1$s</a><br>', [$inviteLink]);
+
+		$encoded = base64_encode("$token@$senderProvider");
+		$technicalDetails = $this->il10->t('<br><small>Technical details (for advanced setups):<br>Invite code: %1$s<br>Encoded invite: %2$s</small>', ["$token@$senderProvider", $encoded]);
+
+		$body = "$header$messageSection$inviteLinkNote$technicalDetails";
 		$email->setHtmlBody($body);
 		$email->setPlainBody(strip_tags(str_replace(['<br>', '<br/>', '<br />'], "\n", $body)));
 

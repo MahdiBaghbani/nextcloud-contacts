@@ -45,8 +45,40 @@ class FederatedInvitesService {
 	) {
 	}
 
-	public function isOcmInvitesEnabled():bool {
+	public function isOcmInvitesEnabled(): bool {
 		return $this->appConfig->getValueBool(Application::APP_ID, 'ocm_invites_enabled', FederatedInvitesService::OCM_INVITES_ENABLED_BY_DEFAULT);
+	}
+
+	/**
+	 * Whether email is optional when creating invites (default: false = email required)
+	 */
+	public function isOptionalMailEnabled(): bool {
+		return $this->appConfig->getValueBool(Application::APP_ID, 'ocm_invites_optional_mail', false);
+	}
+
+	/**
+	 * Whether CC sender checkbox is available (default: true)
+	 */
+	public function isCcSenderEnabled(): bool {
+		return $this->appConfig->getValueBool(Application::APP_ID, 'ocm_invites_cc_sender', true);
+	}
+
+	/**
+	 * Whether the encoded copy button is shown (default: false)
+	 */
+	public function isEncodedCopyButtonEnabled(): bool {
+		return $this->appConfig->getValueBool(Application::APP_ID, 'ocm_invites_encoded_copy_button', false);
+	}
+
+	/**
+	 * Returns all OCM invites config flags for frontend consumption
+	 */
+	public function getOcmInvitesConfig(): array {
+		return [
+			'optionalMail' => $this->isOptionalMailEnabled(),
+			'ccSender' => $this->isCcSenderEnabled(),
+			'encodedCopyButton' => $this->isEncodedCopyButtonEnabled(),
+		];
 	}
 
 	/**
