@@ -225,7 +225,7 @@ export default {
 
 		.info-value {
 			flex: 1;
-			word-break: break-word;
+			overflow-wrap: anywhere;
 		}
 	}
 }
