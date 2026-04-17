@@ -94,7 +94,6 @@ class FederatedInvitesController extends PageController {
 			$appManager,
 			$compareVersion,
 			$groupSharingService,
-			$logger,
 		);
 	}
 
