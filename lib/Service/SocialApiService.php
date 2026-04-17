@@ -288,6 +288,62 @@ class SocialApiService {
 	}
 
 	/**
+	 * Creates a federated contact (no thrown exceptions; null on duplicate or
+	 * when the user has no 'contacts' address book).
+	 *
+	 * Used by the FederatedInviteAcceptedListener on the inviter side, where
+	 * there is no user session and the inviter UID must be passed explicitly.
+	 *
+	 * @param string $cloudId the cloud id of the federated contact
+	 * @param string $email the email of the federated contact
+	 * @param string $name the display name of the federated contact
+	 * @param string $userId the uid of the local (inviter) user
+	 *
+	 * @return array|null the created contact array, or null if a contact with
+	 *                    that cloud id already exists or the inviter has no
+	 *                    'contacts' address book
+	 */
+	public function createFederatedContact(string $cloudId, string $email, string $name, string $userId): ?array {
+		try {
+			$cm = $this->serverContainer->get(ContactsManager::class);
+			$cm->setupContactsProvider($this->manager, $userId, $this->urlGen);
+
+			$searchResult = $this->manager->search($cloudId, ['CLOUD']);
+			if (count($searchResult) > 0) {
+				$this->logger->info('Contact with cloud id ' . $cloudId . ' already exists.', ['app' => Application::APP_ID]);
+				return null;
+			}
+
+			/** @var \OCP\IAddressBook|null $addressBook */
+			$addressBook = null;
+			$addressBooks = $this->manager->getUserAddressBooks();
+			foreach ($addressBooks as $_addressBook) {
+				if ($_addressBook->getUri() === 'contacts') {
+					$addressBook = $_addressBook;
+					break;
+				}
+			}
+			if (!isset($addressBook)) {
+				$this->logger->error('Contacts address book not found. Unable to add the new contact on invite accepted.', ['app' => Application::APP_ID]);
+				return null;
+			}
+
+			$newContact = $this->manager->createOrUpdate(
+				[
+					'FN' => $name,
+					'EMAIL' => $email,
+					'CLOUD' => $cloudId,
+				],
+				$addressBook->getKey()
+			);
+			return $newContact;
+		} catch (Exception $e) {
+			$this->logger->error('An exception occurred creating a federated contact: ' . $e->getTraceAsString(), ['app' => Application::APP_ID]);
+		}
+		return null;
+	}
+
+	/**
 	 * checks an addressbook is existing
 	 *
 	 * @param string $searchBookId the UID of the addressbook to verify
