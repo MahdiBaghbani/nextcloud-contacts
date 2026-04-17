@@ -348,7 +348,16 @@ class FederatedInvitesController extends PageController {
 	 */
 	#[NoAdminRequired]
 	public function resendInvite(string $token): JSONResponse {
-		$invite = $this->federatedInviteMapper->findByToken($token);
+		$uid = $this->userSession->getUser()->getUID();
+		try {
+			$invite = $this->federatedInviteMapper->findInviteByTokenAndUidd($token, $uid);
+		} catch (DoesNotExistException $e) {
+			$this->logger->error("Could not find invite with token=$token for user with uid=$uid", ['app' => Application::APP_ID]);
+			return new JSONResponse(['message' => 'Invite not found'], Http::STATUS_NOT_FOUND);
+		} catch (Exception $e) {
+			$this->logger->error("An unexpected error occurred loading invite with token=$token. Stacktrace: " . $e->getTraceAsString(), ['app' => Application::APP_ID]);
+			return new JSONResponse(['message' => 'An unexpected error occurred trying to resend the invite'], Http::STATUS_NOT_FOUND);
+		}
 
 		// Cannot resend if no email address
 		if (empty($invite->getRecipientEmail())) {
