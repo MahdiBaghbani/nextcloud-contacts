@@ -303,6 +303,36 @@ class FederatedInvitesControllerTest extends TestCase {
 		$this->assertNotSame(Http::STATUS_OK, $response->getStatus());
 	}
 
+	public function testAttachEmailAndSendRevertsWhenMailerThrows(): void {
+		$invite = $this->makeInvite(null);
+		$originalCreatedAt = $invite->getCreatedAt();
+		$originalExpiredAt = $invite->getExpiredAt();
+
+		$this->mapper->method('findInviteByTokenAndUid')->willReturn($invite);
+		$this->mapper->method('findOpenInvitesByRecipientEmail')->willReturn([]);
+		$this->mailer->method('validateMailAddress')->willReturn(true);
+		$this->mailer->method('createMessage')->willReturn($this->createMock(\OCP\Mail\IMessage::class));
+		$this->mailer->method('send')->willThrowException(new \RuntimeException('SMTP refused'));
+		$this->wayfProvider->method('getWayfEndpoint')->willReturn('https://example.org/wayf');
+		$this->invitesService->method('getProviderFQDN')->willReturn('example.org');
+		$this->invitesService->method('getInviteExpirationDate')->willReturnCallback(static fn (int $t): int => $t + 2_592_000);
+		$now = $this->createMock(\DateTimeImmutable::class);
+		$now->method('getTimestamp')->willReturn(1_800_000_000);
+		$this->timeFactory->method('now')->willReturn($now);
+
+		$this->mapper->expects($this->once())
+			->method('claimInviteForEmail')
+			->willReturn(true);
+		$this->mapper->expects($this->once())
+			->method('revertInviteEmail')
+			->with(self::TOKEN, self::UID, 'recipient@example.org', $originalCreatedAt, $originalExpiredAt)
+			->willReturn(true);
+
+		$response = $this->controller->attachEmailAndSend(self::TOKEN, 'recipient@example.org');
+
+		$this->assertSame(Http::STATUS_INTERNAL_SERVER_ERROR, $response->getStatus());
+	}
+
 	public function testResendInviteRejectsWhenInviteBelongsToAnotherUser(): void {
 		$this->mapper->expects($this->once())
 			->method('findInviteByTokenAndUid')

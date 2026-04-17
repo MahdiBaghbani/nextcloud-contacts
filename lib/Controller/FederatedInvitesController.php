@@ -674,8 +674,6 @@ class FederatedInvitesController extends PageController {
 		}
 		$inviteLink = "$wayfEndpoint?token=$token";
 
-		$this->logger->debug("message: $message : " . print_r($message, true));
-
 		$header = $this->il10->t('Hi there,<br><br>%1$s invites you to share contact information using your cloud account.<br>', [$initiatorDisplayName]);
 
 		$messageLineBreaksToHtml = str_replace("\n", '<br>', $message);
@@ -690,8 +688,17 @@ class FederatedInvitesController extends PageController {
 		$email->setHtmlBody($body);
 		$email->setPlainBody(strip_tags(str_replace(['<br>', '<br/>', '<br />'], "\n", $body)));
 
-		/** @var string[] */
-		$failedRecipients = $this->mailer->send($email);
+		try {
+			/** @var string[] $failedRecipients */
+			$failedRecipients = $this->mailer->send($email);
+		} catch (\Throwable $e) {
+			$this->logger->error("Mail transport failure while sending invite to '$address': " . $e->getMessage(), [
+				'app' => Application::APP_ID,
+				'exception' => $e,
+			]);
+			return new JSONResponse(['message' => "Could not send invite to '$address'"], Http::STATUS_INTERNAL_SERVER_ERROR);
+		}
+
 		if (!empty($failedRecipients)) {
 			$this->logger->error("Could not send invite to '$address'", ['app' => Application::APP_ID]);
 			return new JSONResponse(['message' => "Could not send invite to '$address'"], Http::STATUS_NOT_FOUND);
