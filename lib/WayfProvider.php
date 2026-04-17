@@ -106,6 +106,13 @@ class WayfProvider {
 	 * Can be read from the app config key 'wayf_endpoint'.
 	 * If not set the endpoint the WAYF page implementation of this app is returned.
 	 * Note that the invitation link still needs the token and provider parameters, eg. "https://<wayf-page-endpoint>?token=$token&provider=$provider"
+	 *
+	 * Security: the value of 'wayf_endpoint' is used as the base of every
+	 * outgoing invitation URL. It is administrator-only configuration and
+	 * must point to a trusted WAYF page that the recipient can safely visit.
+	 * Setting it to an attacker-controlled origin would let invite links
+	 * leak the token and provider query parameters to a third party.
+	 *
 	 * @return string|null the WAYF login page endpoint or null if it could not be created
 	 */
 	public function getWayfEndpoint(): ?string {

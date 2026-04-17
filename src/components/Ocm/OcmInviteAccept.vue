@@ -9,16 +9,16 @@
 			{{ t('contacts', 'Accept an invite to share contact information') }}
 		</h5>
 		<p>{{ t('contacts', 'After you accept, both of you will appear in each other\'s contacts list and you can start sharing data with each other.') }}</p>
-		<div class="invitation-details">
+		<dl class="invitation-details">
 			<div class="detail-row">
-				<label>{{ t('contacts', 'Invite code') }}</label>
-				<span>{{ token }}</span>
+				<dt>{{ t('contacts', 'Invite code') }}</dt>
+				<dd>{{ token }}</dd>
 			</div>
 			<div class="detail-row">
-				<label>{{ t('contacts', 'Cloud provider') }}</label>
-				<span>{{ provider }}</span>
+				<dt>{{ t('contacts', 'Cloud provider') }}</dt>
+				<dd>{{ provider }}</dd>
 			</div>
-		</div>
+		</dl>
 		<div class="actions">
 			<slot name="accept-invite-actions" />
 		</div>
@@ -57,7 +57,7 @@ export default {
 }
 
 .invitation-details {
-	margin-bottom: 1.5em;
+	margin: 0 0 1.5em 0;
 	padding: 1em;
 	background: var(--color-background-dark);
 	border-radius: var(--border-radius-large);
@@ -70,14 +70,15 @@ export default {
 			border-bottom: 1px solid var(--color-border);
 		}
 
-		label {
+		dt {
 			flex: 0 0 120px;
 			font-weight: 500;
 			color: var(--color-text-maxcontrast);
 		}
 
-		span {
+		dd {
 			flex: 1;
+			margin: 0;
 			word-break: break-all;
 		}
 	}

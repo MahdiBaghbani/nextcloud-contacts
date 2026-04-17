@@ -733,17 +733,17 @@ export default _default
 .import-and-new-contact-buttons {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--default-grid-baseline);
 }
 
 .invite-accept-form__buttons-row {
   display: flex;
-  gap: 0.6em;
-  margin-top: 1em;
+  gap: calc(var(--default-grid-baseline) * 2);
+  margin-top: calc(var(--default-grid-baseline) * 4);
 }
 
 .new-invite-form__buttons-row {
-  margin-top: 1em;
+  margin-top: calc(var(--default-grid-baseline) * 4);
   display: flex;
   align-items: center;
   flex-wrap: wrap;

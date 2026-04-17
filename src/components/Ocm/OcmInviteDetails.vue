@@ -46,19 +46,19 @@
 					</summary>
 					<p class="share-hint">{{ t('contacts', 'Useful for chat apps and manual acceptance. The recipient already received the invite by email.') }}</p>
 					<div class="share-buttons">
-						<NcButton variant="secondary" data-testid="ocm-invite-link-copy-btn" @click="copyToClipboard(wayfLink, 'Invite link')">
+						<NcButton variant="secondary" data-testid="ocm-invite-link-copy-btn" @click="copyToClipboard(wayfLink, clipboardKinds.inviteLink)">
 							<template #icon>
 								<ContentCopyIcon :size="20" />
 							</template>
 							{{ t('contacts', 'Copy invite link') }}
 						</NcButton>
-						<NcButton variant="secondary" data-testid="ocm-invite-token-copy-btn" @click="copyToClipboard(plainInviteString, 'Invite code')">
+						<NcButton variant="secondary" data-testid="ocm-invite-token-copy-btn" @click="copyToClipboard(plainInviteString, clipboardKinds.inviteCode)">
 							<template #icon>
 								<ContentCopyIcon :size="20" />
 							</template>
 							{{ t('contacts', 'Copy invite code') }}
 						</NcButton>
-						<NcButton v-if="encodedCopyButtonEnabled" type="secondary" data-testid="ocm-invite-base64-copy-btn" @click="copyToClipboard(base64InviteString, 'Encoded invite')">
+						<NcButton v-if="encodedCopyButtonEnabled" variant="secondary" data-testid="ocm-invite-base64-copy-btn" @click="copyToClipboard(base64InviteString, clipboardKinds.encodedInvite)">
 							<template #icon>
 								<ContentCopyIcon :size="20" />
 							</template>
@@ -70,19 +70,19 @@
 					<h3>{{ t('contacts', 'Share invite') }}</h3>
 					<p class="share-hint">{{ t('contacts', 'The invite link is the easiest way to share. Invite codes are for manual acceptance.') }}</p>
 					<div class="share-buttons">
-						<NcButton variant="secondary" data-testid="ocm-invite-link-copy-btn" @click="copyToClipboard(wayfLink, 'Invite link')">
+						<NcButton variant="secondary" data-testid="ocm-invite-link-copy-btn" @click="copyToClipboard(wayfLink, clipboardKinds.inviteLink)">
 							<template #icon>
 								<ContentCopyIcon :size="20" />
 							</template>
 							{{ t('contacts', 'Copy invite link') }}
 						</NcButton>
-						<NcButton variant="secondary" data-testid="ocm-invite-token-copy-btn" @click="copyToClipboard(plainInviteString, 'Invite code')">
+						<NcButton variant="secondary" data-testid="ocm-invite-token-copy-btn" @click="copyToClipboard(plainInviteString, clipboardKinds.inviteCode)">
 							<template #icon>
 								<ContentCopyIcon :size="20" />
 							</template>
 							{{ t('contacts', 'Copy invite code') }}
 						</NcButton>
-						<NcButton v-if="encodedCopyButtonEnabled" type="secondary" data-testid="ocm-invite-base64-copy-btn" @click="copyToClipboard(base64InviteString, 'Encoded invite')">
+						<NcButton v-if="encodedCopyButtonEnabled" variant="secondary" data-testid="ocm-invite-base64-copy-btn" @click="copyToClipboard(base64InviteString, clipboardKinds.encodedInvite)">
 							<template #icon>
 								<ContentCopyIcon :size="20" />
 							</template>
@@ -153,6 +153,10 @@ import OcmAttachEmailForm from './OcmAttachEmailForm.vue'
 
 const dateFormat = 'lll'
 
+const CLIPBOARD_KIND_INVITE_LINK = 'invite-link'
+const CLIPBOARD_KIND_INVITE_CODE = 'invite-code'
+const CLIPBOARD_KIND_ENCODED_INVITE = 'encoded-invite'
+
 export default {
 	name: 'OcmInviteDetails',
 
@@ -197,6 +201,13 @@ export default {
 	},
 
 	computed: {
+		clipboardKinds() {
+			return {
+				inviteLink: CLIPBOARD_KIND_INVITE_LINK,
+				inviteCode: CLIPBOARD_KIND_INVITE_CODE,
+				encodedInvite: CLIPBOARD_KIND_ENCODED_INVITE,
+			}
+		},
 		invite() {
 			return this.$store.getters.getOcmInvite(this.inviteKey)
 		},
@@ -226,12 +237,18 @@ export default {
 			try {
 				await navigator.clipboard.writeText(text)
 				let message
-				if (kind === 'Invite code') {
+				switch (kind) {
+				case CLIPBOARD_KIND_INVITE_CODE:
 					message = this.t('contacts', 'Invite code copied to clipboard')
-				} else if (kind === 'Encoded invite') {
+					break
+				case CLIPBOARD_KIND_ENCODED_INVITE:
 					message = this.t('contacts', 'Encoded invite copied to clipboard')
-				} else {
+					break
+				case CLIPBOARD_KIND_INVITE_LINK:
 					message = this.t('contacts', 'Invite link copied to clipboard')
+					break
+				default:
+					message = this.t('contacts', 'Copied to clipboard')
 				}
 				showSuccess(message)
 			} catch (error) {
@@ -397,9 +414,9 @@ export default {
 			width: 0;
 			height: 0;
 			margin-inline-start: auto;
-			border-top: 5px solid transparent;
-			border-bottom: 5px solid transparent;
-			border-left: 6px solid currentColor;
+			border-block-start: 5px solid transparent;
+			border-block-end: 5px solid transparent;
+			border-inline-start: 6px solid currentColor;
 			transition: transform 0.15s ease-in-out;
 		}
 	}

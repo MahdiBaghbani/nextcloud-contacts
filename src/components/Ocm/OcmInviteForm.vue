@@ -186,15 +186,6 @@ export default {
 				height: 18px;
 				cursor: pointer;
 				accent-color: var(--color-primary);
-				outline: none;
-				box-shadow: none;
-
-				&:focus,
-				&:hover,
-				&:focus-visible {
-					outline: none;
-					box-shadow: none;
-				}
 			}
 
 			span {
