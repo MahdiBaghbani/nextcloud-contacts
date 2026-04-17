@@ -84,17 +84,21 @@
 			:name="t('contacts', 'Invite someone to share contacts')"
 			:no-close="loadingUpdate"
 			@close="cancelNewInvite">
-			<OcmInviteForm v-model:ocm-invite="ocmInvite">
+			<OcmInviteForm v-model:ocm-invite="ocmInvite" :loading-update="loadingUpdate">
 				<template #new-invite-actions>
 					<div class="new-invite-form__buttons-row">
-						<NcButton :disabled="loadingUpdate" @click="sendNewInvite">
+						<NcButton :disabled="loadingUpdate"
+							data-testid="ocm-invite-new-submit-btn"
+							@click="sendNewInvite">
 							<template #icon>
 								<IconLoading v-if="loadingUpdate" :size="20" />
 								<IconCheck v-else :size="20" />
 							</template>
-							{{ t("contacts", "Send invite") }}
+							{{ newInvitePrimaryLabel }}
 						</NcButton>
-						<NcButton :disabled="loadingUpdate" @click="cancelNewInvite">
+						<NcButton :disabled="loadingUpdate"
+							data-testid="ocm-invite-new-cancel-btn"
+							@click="cancelNewInvite">
 							<template #icon>
 								<IconLoading v-if="loadingUpdate" :size="20" />
 								<IconCancel v-else :size="20" />
@@ -361,6 +365,22 @@ const _default = {
 
 		ungroupedContacts() {
 			return this.sortedContacts.filter((contact) => this.contacts[contact.key].groups && this.contacts[contact.key].groups.length === 0)
+		},
+
+		/**
+		 * Primary action label for the "Invite someone" modal.
+		 *
+		 * Reads from the parent-side `ocmInvite.sendEmail` patch the child
+		 * emits via v-model. Defensive `!== false` is required because on
+		 * first paint the parent's `ocmInvite` is `{ email, message, note }`
+		 * (no `sendEmail` key); without the guard the label would briefly
+		 * render as "Generate invite" before the child's immediate watcher
+		 * emits and snaps it back to "Send invite" when email is required.
+		 */
+		newInvitePrimaryLabel() {
+			return this.ocmInvite.sendEmail !== false
+				? this.t('contacts', 'Send invite')
+				: this.t('contacts', 'Generate invite')
 		},
 	},
 

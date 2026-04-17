@@ -13,6 +13,7 @@
 				:label="t('contacts', 'Invite label (for your reference)')"
 				:placeholder="t('contacts', 'e.g. Mahdi from OCM')"
 				:value="ocmInvite.note"
+				:disabled="loadingUpdate"
 				data-testid="ocm-invite-note-input"
 				@input="setNote" />
 			<p class="hint">{{ t('contacts', 'A name or note to help you identify this invite') }}</p>
@@ -21,7 +22,7 @@
 		<div class="email-section">
 			<!-- Only show toggle if optional mail is enabled -->
 			<label v-if="optionalMailEnabled" class="email-toggle">
-				<input type="checkbox" v-model="sendEmail" data-testid="ocm-invite-send-email-checkbox">
+				<input type="checkbox" v-model="sendEmail" :disabled="loadingUpdate" data-testid="ocm-invite-send-email-checkbox">
 				<span>{{ t('contacts', 'Send invite via email') }}</span>
 			</label>
 			<div v-if="showEmailFields" class="email-fields">
@@ -31,6 +32,7 @@
 					:placeholder="t('contacts', 'email@example.com')"
 					:value="ocmInvite.email"
 					:required="emailRequired"
+					:disabled="loadingUpdate"
 					inputmode="email"
 					data-testid="ocm-invite-email-input"
 					@input="setEmail" />
@@ -39,10 +41,11 @@
 					:label="t('contacts', 'Personal message (optional)')"
 					:placeholder="t('contacts', 'Message to include in the email')"
 					:rows="3"
+					:disabled="loadingUpdate"
 					data-testid="ocm-invite-message-input" />
 				<!-- CC checkbox - only show if enabled in config -->
 				<label v-if="ccSenderEnabled" class="cc-toggle">
-					<input type="checkbox" v-model="ccSender" data-testid="ocm-invite-cc-sender-checkbox">
+					<input type="checkbox" v-model="ccSender" :disabled="loadingUpdate" data-testid="ocm-invite-cc-sender-checkbox">
 					<span>{{ t('contacts', 'Also send a copy of this invite to me') }}</span>
 				</label>
 			</div>
@@ -69,6 +72,10 @@ export default {
 		ocmInvite: {
 			type: Object,
 			required: true,
+		},
+		loadingUpdate: {
+			type: Boolean,
+			default: false,
 		},
 	},
 	emits: ['update:ocmInvite'],
