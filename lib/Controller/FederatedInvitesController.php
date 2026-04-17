@@ -23,9 +23,11 @@ use OCA\FederatedFileSharing\AddressHandler;
 use OCP\App\IAppManager;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
+use OCP\AppFramework\Http\Attribute\BruteForceProtection;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\Attribute\PublicPage;
+use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\AppFramework\Http\TemplateResponse;
@@ -166,6 +168,8 @@ class FederatedInvitesController extends PageController {
 	 * @return JSONResponse with data signature ['invite' | 'message'] - the invite url or an error message in case of error.
 	 */
 	#[NoAdminRequired]
+	#[UserRateLimit(limit: 60, period: 3600)]
+	#[BruteForceProtection(action: 'ocmInviteCreate')]
 	public function createInvite(string $email = '', string $message = '', string $note = '', bool $ccSender = false): JSONResponse {
 		// Enforce email required when optional mail is disabled
 		if (empty($email) && !$this->federatedInvitesService->isOptionalMailEnabled()) {
@@ -249,6 +253,8 @@ class FederatedInvitesController extends PageController {
 	 * @return JSONResponse with data signature ['contact' | 'message'] - the new contact url or an error message in case of error
 	 */
 	#[NoAdminRequired]
+	#[UserRateLimit(limit: 60, period: 3600)]
+	#[BruteForceProtection(action: 'ocmInviteAccept')]
 	public function acceptInvite(string $token = '', string $provider = ''): JSONResponse {
 		if ($token === '' || $provider === '') {
 			$this->logger->error("Both token and provider must be specified. Received: token=$token, provider=$provider", ['app' => Application::APP_ID]);
@@ -347,6 +353,8 @@ class FederatedInvitesController extends PageController {
 	 *
 	 */
 	#[NoAdminRequired]
+	#[UserRateLimit(limit: 30, period: 3600)]
+	#[BruteForceProtection(action: 'ocmInviteResend')]
 	public function resendInvite(string $token): JSONResponse {
 		$uid = $this->userSession->getUser()->getUID();
 		try {
@@ -405,6 +413,8 @@ class FederatedInvitesController extends PageController {
 	 * @return JSONResponse the serialized invite on success or an error message
 	 */
 	#[NoAdminRequired]
+	#[UserRateLimit(limit: 30, period: 3600)]
+	#[BruteForceProtection(action: 'ocmInviteAttachEmail')]
 	public function attachEmailAndSend(string $token, string $email = '', string $message = ''): JSONResponse {
 		$uid = $this->userSession->getUser()->getUID();
 		try {
