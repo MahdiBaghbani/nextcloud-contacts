@@ -15,10 +15,11 @@
     <div class="ocm_manual_inputs">
       <NcTextField
         v-model="invite"
-        :label="t('contacts', 'Invite code or link')"
+        :label="t('contacts', 'Invite code or link (required)')"
         type="text"
         :error="Boolean(error)"
         :helper-text="error || t('contacts', 'Paste an invite link, invite code (token@provider), or encoded invite')"
+        :required="true"
       />
 
       <div class="ocm_manual_buttons">

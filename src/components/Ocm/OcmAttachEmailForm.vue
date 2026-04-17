@@ -12,11 +12,12 @@
 			<NcTextField
 				ref="emailField"
 				type="email"
-				:label="t('contacts', 'Recipient email')"
+				:label="t('contacts', 'Recipient email (required)')"
 				:placeholder="t('contacts', 'email@example.com')"
 				:value="email"
 				:error="Boolean(error)"
 				:helper-text="error || ''"
+				:required="true"
 				inputmode="email"
 				autocomplete="email"
 				data-testid="ocm-invite-attach-email-input"

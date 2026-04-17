@@ -27,9 +27,10 @@
 			<div v-if="showEmailFields" class="email-fields">
 				<NcTextField
 					type="email"
-					:label="t('contacts', 'Recipient email')"
+					:label="emailLabel"
 					:placeholder="t('contacts', 'email@example.com')"
 					:value="ocmInvite.email"
+					:required="emailRequired"
 					inputmode="email"
 					data-testid="ocm-invite-email-input"
 					@input="setEmail" />
@@ -89,6 +90,14 @@ export default {
 			// Always show if optional mail is disabled (email required)
 			// Otherwise show based on sendEmail toggle
 			return !this.optionalMailEnabled || this.sendEmail
+		},
+		emailRequired() {
+			return !this.optionalMailEnabled || this.sendEmail
+		},
+		emailLabel() {
+			return this.emailRequired
+				? this.t('contacts', 'Recipient email (required)')
+				: this.t('contacts', 'Recipient email')
 		},
 		messageModel: {
 			get() {
