@@ -132,10 +132,10 @@ class FederatedInvitesController extends PageController {
 			return new JSONResponse(['token' => $token], Http::STATUS_OK);
 		} catch (DoesNotExistException $e) {
 			$this->logger->warning("Could not find invite with token=$token for user with uid=$uid", ['app' => Application::APP_ID]);
-			return new JSONResponse(['message' => 'An unexpected error occurred trying to delete the invite'], Http::STATUS_NOT_FOUND);
+			return new JSONResponse(['message' => 'Invite not found'], Http::STATUS_NOT_FOUND);
 		} catch (Exception $e) {
 			$this->logger->error("An unexpected error occurred deleting invite with token=$token. Stacktrace: " . $e->getTraceAsString(), ['app' => Application::APP_ID]);
-			return new JSONResponse(['message' => 'An unexpected error occurred trying to delete the invite'], Http::STATUS_NOT_FOUND);
+			return new JSONResponse(['message' => 'An unexpected error occurred trying to delete the invite'], Http::STATUS_INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -204,7 +204,7 @@ class FederatedInvitesController extends PageController {
 			$this->federatedInviteMapper->insert($invite);
 		} catch (Exception $e) {
 			$this->logger->error('An unexpected error occurred saving a new invite. Stacktrace: ' . $e->getTraceAsString(), ['app' => Application::APP_ID]);
-			return new JSONResponse(['message' => 'An unexpected error occurred creating the invite.'], Http::STATUS_NOT_FOUND);
+			return new JSONResponse(['message' => 'An unexpected error occurred creating the invite.'], Http::STATUS_INTERNAL_SERVER_ERROR);
 		}
 
 		$senderProvider = $this->federatedInvitesService->getProviderFQDN();
@@ -219,7 +219,7 @@ class FederatedInvitesController extends PageController {
 					$this->federatedInviteMapper->delete($invite);
 				} catch (Exception $e) {
 					$this->logger->error("An unexpected error occurred deleting invite with token $token. Stacktrace: " . $e->getTraceAsString(), ['app' => Application::APP_ID]);
-					return new JSONResponse(['message' => 'An unexpected error occurred creating the invite.'], Http::STATUS_NOT_FOUND);
+					return new JSONResponse(['message' => 'An unexpected error occurred creating the invite.'], Http::STATUS_INTERNAL_SERVER_ERROR);
 				}
 				return $response;
 			}
@@ -252,7 +252,7 @@ class FederatedInvitesController extends PageController {
 	public function acceptInvite(string $token = '', string $provider = ''): JSONResponse {
 		if ($token === '' || $provider === '') {
 			$this->logger->error("Both token and provider must be specified. Received: token=$token, provider=$provider", ['app' => Application::APP_ID]);
-			return new JSONResponse(['message' => 'Both token and provider must be specified.'], Http::STATUS_NOT_FOUND);
+			return new JSONResponse(['message' => 'Both token and provider must be specified.'], Http::STATUS_BAD_REQUEST);
 		}
 		$localUser = $this->userSession->getUser();
 		$recipientProvider = $this->federatedInvitesService->getProviderFQDN();
@@ -261,7 +261,7 @@ class FederatedInvitesController extends PageController {
 		$name = $localUser->getDisplayName();
 		if ($recipientProvider === '' || $userId === '' || $email === '' || $name === '') {
 			$this->logger->error("All of these must be set: recipientProvider: $recipientProvider, email: $email, userId: $userId, name: $name", ['app' => Application::APP_ID]);
-			return new JSONResponse(['message' => 'Could not accept invite, user data is incomplete.'], Http::STATUS_NOT_FOUND);
+			return new JSONResponse(['message' => 'Could not accept invite, user data is incomplete.'], Http::STATUS_UNPROCESSABLE_ENTITY);
 		}
 		try {
 			// accept the invite by calling provider OCM /invite-accepted
@@ -307,7 +307,7 @@ class FederatedInvitesController extends PageController {
 					null
 				);
 				if (!isset($contactRef)) {
-					return new JSONResponse(['message' => 'An unexpected error occurred trying to accept invite.'], Http::STATUS_NOT_FOUND);
+					return new JSONResponse(['message' => 'An unexpected error occurred trying to accept invite.'], Http::STATUS_INTERNAL_SERVER_ERROR);
 				}
 				$key = base64_encode($contactRef);
 				$contactUrl = $this->urlGenerator->getAbsoluteURL(
@@ -316,7 +316,7 @@ class FederatedInvitesController extends PageController {
 				return new JSONResponse(['contact' => $contactUrl], Http::STATUS_OK);
 			} else {
 				$this->logger->error('Provider: ' . $provider . ' does not support invites.', ['app' => Application::APP_ID]);
-				return new JSONResponse(['message' => 'Provider: ' . $provider . ' does not support invites.'], Http::STATUS_NOT_FOUND);
+				return new JSONResponse(['message' => 'Provider: ' . $provider . ' does not support invites.'], Http::STATUS_BAD_REQUEST);
 			}
 		} catch (ContactExistsException $e) {
 			return new JSONResponse(['message' => 'Contact with cloudID ' . $cloudId . ' already exists.'], Http::STATUS_CONFLICT);
@@ -334,10 +334,10 @@ class FederatedInvitesController extends PageController {
 					return new JSONResponse(['message' => 'Invite already accepted'], $e->getCode());
 			}
 			$this->logger->error("An unexpected error occurred accepting invite with token=$token and provider=$provider. Stacktrace: " . $e->getTraceAsString(), ['app' => Application::APP_ID]);
-			return new JSONResponse(['message' => 'An unexpected error occurred trying to accept invite.'], Http::STATUS_NOT_FOUND);
+			return new JSONResponse(['message' => 'An unexpected error occurred trying to accept invite.'], Http::STATUS_INTERNAL_SERVER_ERROR);
 		} catch (OCMProviderException|OCMRequestException|Exception $e) {
 			$this->logger->error("An unexpected error occurred accepting invite with token=$token and provider=$provider. Stacktrace: " . $e->getTraceAsString(), ['app' => Application::APP_ID]);
-			return new JSONResponse(['message' => 'An unexpected error occurred trying to accept invite'], Http::STATUS_NOT_FOUND);
+			return new JSONResponse(['message' => 'An unexpected error occurred trying to accept invite'], Http::STATUS_INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -356,12 +356,12 @@ class FederatedInvitesController extends PageController {
 			return new JSONResponse(['message' => 'Invite not found'], Http::STATUS_NOT_FOUND);
 		} catch (Exception $e) {
 			$this->logger->error("An unexpected error occurred loading invite with token=$token. Stacktrace: " . $e->getTraceAsString(), ['app' => Application::APP_ID]);
-			return new JSONResponse(['message' => 'An unexpected error occurred trying to resend the invite'], Http::STATUS_NOT_FOUND);
+			return new JSONResponse(['message' => 'An unexpected error occurred trying to resend the invite'], Http::STATUS_INTERNAL_SERVER_ERROR);
 		}
 
 		// Cannot resend if no email address
 		if (empty($invite->getRecipientEmail())) {
-			return new JSONResponse(['message' => $this->il10->t('Cannot resend: no email address')], Http::STATUS_BAD_REQUEST);
+			return new JSONResponse(['message' => $this->il10->t('Cannot resend: no email address')], Http::STATUS_UNPROCESSABLE_ENTITY);
 		}
 
 		$sendDate = date('Y-m-d', $invite->getCreatedAt());
@@ -414,7 +414,7 @@ class FederatedInvitesController extends PageController {
 			return new JSONResponse(['message' => 'Invite not found'], Http::STATUS_NOT_FOUND);
 		} catch (Exception $e) {
 			$this->logger->error("An unexpected error occurred loading invite with token=$token. Stacktrace: " . $e->getTraceAsString(), ['app' => Application::APP_ID]);
-			return new JSONResponse(['message' => 'An unexpected error occurred attaching the email.'], Http::STATUS_NOT_FOUND);
+			return new JSONResponse(['message' => 'An unexpected error occurred attaching the email.'], Http::STATUS_INTERNAL_SERVER_ERROR);
 		}
 
 		if ($invite->isAccepted() === true) {
@@ -468,7 +468,7 @@ class FederatedInvitesController extends PageController {
 			);
 		} catch (Exception $e) {
 			$this->logger->error("An unexpected error occurred claiming invite with token=$token. Stacktrace: " . $e->getTraceAsString(), ['app' => Application::APP_ID]);
-			return new JSONResponse(['message' => 'An unexpected error occurred attaching the email.'], Http::STATUS_NOT_FOUND);
+			return new JSONResponse(['message' => 'An unexpected error occurred attaching the email.'], Http::STATUS_INTERNAL_SERVER_ERROR);
 		}
 
 		if ($claimed === false) {
@@ -660,7 +660,7 @@ class FederatedInvitesController extends PageController {
 	private function validateEmail(string $address): ?JSONResponse {
 		if (!$this->mailer->validateMailAddress($address)) {
 			$this->logger->debug("Invalid recipient email address '$address'", ['app' => Application::APP_ID]);
-			return new JSONResponse(['message' => 'Recipient email address is invalid'], Http::STATUS_NOT_FOUND);
+			return new JSONResponse(['message' => 'Recipient email address is invalid'], Http::STATUS_UNPROCESSABLE_ENTITY);
 		}
 		return null;
 	}
@@ -697,7 +697,7 @@ class FederatedInvitesController extends PageController {
 		$wayfEndpoint = $this->wayfProvider->getWayfEndpoint();
 		if (empty($wayfEndpoint)) {
 			$this->logger->error('Invalid WAYF endpoint (null).', ['app' => Application::APP_ID]);
-			return new JSONResponse(['message' => 'Could not send invite.'], Http::STATUS_NOT_FOUND);
+			return new JSONResponse(['message' => 'Could not send invite.'], Http::STATUS_INTERNAL_SERVER_ERROR);
 		}
 		$inviteLink = "$wayfEndpoint?token=$token";
 		$encoded = base64_encode("$token@$senderProvider");
@@ -733,12 +733,12 @@ class FederatedInvitesController extends PageController {
 				'app' => Application::APP_ID,
 				'exception' => $e,
 			]);
-			return new JSONResponse(['message' => "Could not send invite to '$address'"], Http::STATUS_INTERNAL_SERVER_ERROR);
+			return new JSONResponse(['message' => "Could not send invite to '$address'"], Http::STATUS_BAD_GATEWAY);
 		}
 
 		if (!empty($failedRecipients)) {
 			$this->logger->error("Could not send invite to '$address'", ['app' => Application::APP_ID]);
-			return new JSONResponse(['message' => "Could not send invite to '$address'"], Http::STATUS_NOT_FOUND);
+			return new JSONResponse(['message' => "Could not send invite to '$address'"], Http::STATUS_BAD_GATEWAY);
 		}
 
 		return new JSONResponse([], Http::STATUS_OK);

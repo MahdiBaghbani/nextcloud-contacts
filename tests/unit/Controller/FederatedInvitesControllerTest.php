@@ -255,7 +255,7 @@ class FederatedInvitesControllerTest extends TestCase {
 
 		$response = $this->controller->attachEmailAndSend(self::TOKEN, 'not-an-email');
 
-		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+		$this->assertSame(Http::STATUS_UNPROCESSABLE_ENTITY, $response->getStatus());
 		$this->assertNull($invite->getRecipientEmail());
 	}
 
@@ -383,7 +383,7 @@ class FederatedInvitesControllerTest extends TestCase {
 
 		$response = $this->controller->attachEmailAndSend(self::TOKEN, 'recipient@example.org');
 
-		$this->assertSame(Http::STATUS_INTERNAL_SERVER_ERROR, $response->getStatus());
+		$this->assertSame(Http::STATUS_BAD_GATEWAY, $response->getStatus());
 	}
 
 	public function testResendInviteRejectsWhenInviteBelongsToAnotherUser(): void {
