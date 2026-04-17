@@ -79,4 +79,62 @@ class FederatedInviteMapper extends QBMapper {
 		return $this->findEntity($qb);
 	}
 
+	/**
+	 * Atomically claims an unclaimed (recipient_email IS NULL) and unaccepted
+	 * invite for the given email and refreshes its lifetime.
+	 *
+	 * Returns true when exactly one row was affected, meaning the caller now
+	 * owns the (token, recipient_email) pair. Returns false when the row no
+	 * longer matches the precondition (a concurrent attach already claimed
+	 * the invite, the invite was accepted, or the row vanished).
+	 */
+	public function claimInviteForEmail(
+		string $token,
+		string $userId,
+		string $email,
+		int $createdAt,
+		int $expiredAt,
+	): bool {
+		$qb = $this->db->getQueryBuilder();
+		$qb->update(self::TABLE_NAME)
+			->set('recipient_email', $qb->createNamedParameter($email))
+			->set('created_at', $qb->createNamedParameter($createdAt, IQueryBuilder::PARAM_INT))
+			->set('expired_at', $qb->createNamedParameter($expiredAt, IQueryBuilder::PARAM_INT))
+			->where($qb->expr()->eq('token', $qb->createNamedParameter($token, IQueryBuilder::PARAM_STR)))
+			->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->andWhere($qb->expr()->isNull('recipient_email'))
+			->andWhere($qb->expr()->eq('accepted', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)));
+		return $qb->executeStatement() === 1;
+	}
+
+	/**
+	 * Best-effort revert of a previous claim made by claimInviteForEmail().
+	 * Only undoes the change when the row still has the email we set and is
+	 * still unaccepted, so a revert can never overwrite a successful accept
+	 * race or another user's later claim.
+	 *
+	 * Returns true when the revert took effect.
+	 */
+	public function revertInviteEmail(
+		string $token,
+		string $userId,
+		string $email,
+		int $previousCreatedAt,
+		?int $previousExpiredAt,
+	): bool {
+		$qb = $this->db->getQueryBuilder();
+		$expiredParam = $previousExpiredAt === null
+			? $qb->createNamedParameter(null, IQueryBuilder::PARAM_NULL)
+			: $qb->createNamedParameter($previousExpiredAt, IQueryBuilder::PARAM_INT);
+		$qb->update(self::TABLE_NAME)
+			->set('recipient_email', $qb->createNamedParameter(null, IQueryBuilder::PARAM_NULL))
+			->set('created_at', $qb->createNamedParameter($previousCreatedAt, IQueryBuilder::PARAM_INT))
+			->set('expired_at', $expiredParam)
+			->where($qb->expr()->eq('token', $qb->createNamedParameter($token, IQueryBuilder::PARAM_STR)))
+			->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->andWhere($qb->expr()->eq('recipient_email', $qb->createNamedParameter($email)))
+			->andWhere($qb->expr()->eq('accepted', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)));
+		return $qb->executeStatement() === 1;
+	}
+
 }

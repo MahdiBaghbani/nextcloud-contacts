@@ -433,37 +433,56 @@ class FederatedInvitesController extends PageController {
 		}
 
 		// Reject when another open invite from this user already targets the same email.
+		// The current invite is excluded by construction: it has no recipient_email yet
+		// and findOpenInvitesByRecipientEmail() filters by recipient_email.
 		$existingInvites = $this->federatedInviteMapper->findOpenInvitesByRecipientEmail($uid, $email);
-		foreach ($existingInvites as $existing) {
-			if ($existing->getToken() !== $token) {
-				$this->logger->error("An open invite already exists for user with uid $uid and for recipient email $email", ['app' => Application::APP_ID]);
-				return new JSONResponse(['message' => $this->il10->t('An open invite already exists.')], Http::STATUS_CONFLICT);
-			}
+		if (count($existingInvites) > 0) {
+			$this->logger->error("An open invite already exists for user with uid $uid and for recipient email $email", ['app' => Application::APP_ID]);
+			return new JSONResponse(['message' => $this->il10->t('An open invite already exists.')], Http::STATUS_CONFLICT);
 		}
 
 		$previousCreatedAt = $invite->getCreatedAt();
 		$previousExpiredAt = $invite->getExpiredAt();
-		$invite->setRecipientEmail($email);
-		$invite->setCreatedAt($this->timeFactory->now()->getTimestamp());
-		$invite->setExpiredAt($this->federatedInvitesService->getInviteExpirationDate($invite->getCreatedAt()));
+		$newCreatedAt = $this->timeFactory->now()->getTimestamp();
+		$newExpiredAt = $this->federatedInvitesService->getInviteExpirationDate($newCreatedAt);
+
 		try {
-			$this->federatedInviteMapper->update($invite);
+			$claimed = $this->federatedInviteMapper->claimInviteForEmail(
+				$token,
+				$uid,
+				$email,
+				$newCreatedAt,
+				$newExpiredAt,
+			);
 		} catch (Exception $e) {
-			$this->logger->error("An unexpected error occurred updating invite with token=$token. Stacktrace: " . $e->getTraceAsString(), ['app' => Application::APP_ID]);
+			$this->logger->error("An unexpected error occurred claiming invite with token=$token. Stacktrace: " . $e->getTraceAsString(), ['app' => Application::APP_ID]);
 			return new JSONResponse(['message' => 'An unexpected error occurred attaching the email.'], Http::STATUS_NOT_FOUND);
 		}
+
+		if ($claimed === false) {
+			// A concurrent attach won the race or the invite was accepted between
+			// the read and the conditional update. Treat as a 409 collision so the
+			// client can refresh and decide what to do next.
+			return new JSONResponse(['message' => $this->il10->t('An open invite already exists.')], Http::STATUS_CONFLICT);
+		}
+
+		$invite->setRecipientEmail($email);
+		$invite->setCreatedAt($newCreatedAt);
+		$invite->setExpiredAt($newExpiredAt);
 
 		$senderProvider = $this->federatedInvitesService->getProviderFQDN();
 		/** @var JSONResponse */
 		$response = $this->sendEmail($token, $senderProvider, $email, $message);
 		if ($response->getStatus() !== Http::STATUS_OK) {
 			$this->logger->error("An unexpected error occurred sending the invite with token $token. HTTP response status: " . $response->getStatus(), ['app' => Application::APP_ID]);
-			// Revert the row so a failed call leaves the invite exactly as it was.
-			$invite->setRecipientEmail(null);
-			$invite->setCreatedAt($previousCreatedAt);
-			$invite->setExpiredAt($previousExpiredAt);
 			try {
-				$this->federatedInviteMapper->update($invite);
+				$this->federatedInviteMapper->revertInviteEmail(
+					$token,
+					$uid,
+					$email,
+					$previousCreatedAt,
+					$previousExpiredAt,
+				);
 			} catch (Exception $e) {
 				$this->logger->error("Could not revert invite with token=$token after mailer failure. Stacktrace: " . $e->getTraceAsString(), ['app' => Application::APP_ID]);
 			}

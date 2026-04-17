@@ -165,7 +165,11 @@ class FederatedInvitesControllerTest extends TestCase {
 		$now->method('getTimestamp')->willReturn(1_800_000_000);
 		$this->timeFactory->method('now')->willReturn($now);
 
-		$this->mapper->expects($this->once())->method('update')->with($invite);
+		$this->mapper->expects($this->once())
+			->method('claimInviteForEmail')
+			->with(self::TOKEN, self::UID, 'recipient@example.org', 1_800_000_000, 1_800_000_000 + 2_592_000)
+			->willReturn(true);
+		$this->mapper->expects($this->never())->method('revertInviteEmail');
 
 		$response = $this->controller->attachEmailAndSend(self::TOKEN, 'recipient@example.org', 'hello');
 
@@ -176,6 +180,29 @@ class FederatedInvitesControllerTest extends TestCase {
 		$this->assertSame(1_800_000_000, $body['createdAt']);
 	}
 
+	public function testAttachEmailAndSendRejectsWhenClaimLosesRace(): void {
+		$invite = $this->makeInvite(null);
+
+		$this->mapper->method('findInviteByTokenAndUid')->willReturn($invite);
+		$this->mapper->method('findOpenInvitesByRecipientEmail')->willReturn([]);
+		$this->mailer->method('validateMailAddress')->willReturn(true);
+		$this->invitesService->method('getInviteExpirationDate')->willReturnCallback(static fn (int $t): int => $t + 2_592_000);
+		$now = $this->createMock(\DateTimeImmutable::class);
+		$now->method('getTimestamp')->willReturn(1_800_000_000);
+		$this->timeFactory->method('now')->willReturn($now);
+
+		$this->mapper->expects($this->once())
+			->method('claimInviteForEmail')
+			->willReturn(false);
+		$this->mailer->expects($this->never())->method('send');
+		$this->mapper->expects($this->never())->method('revertInviteEmail');
+
+		$response = $this->controller->attachEmailAndSend(self::TOKEN, 'recipient@example.org');
+
+		$this->assertSame(Http::STATUS_CONFLICT, $response->getStatus());
+		$this->assertNull($invite->getRecipientEmail());
+	}
+
 	public function testAttachEmailAndSendRejectsWhenInviteBelongsToAnotherUser(): void {
 		$this->mapper->expects($this->once())
 			->method('findInviteByTokenAndUid')
@@ -183,7 +210,8 @@ class FederatedInvitesControllerTest extends TestCase {
 			->willThrowException(new DoesNotExistException('not found'));
 
 		$this->mailer->expects($this->never())->method('send');
-		$this->mapper->expects($this->never())->method('update');
+		$this->mapper->expects($this->never())->method('claimInviteForEmail');
+		$this->mapper->expects($this->never())->method('revertInviteEmail');
 
 		$response = $this->controller->attachEmailAndSend(self::TOKEN, 'recipient@example.org');
 
@@ -195,7 +223,7 @@ class FederatedInvitesControllerTest extends TestCase {
 		$this->mapper->method('findInviteByTokenAndUid')->willReturn($invite);
 
 		$this->mailer->expects($this->never())->method('send');
-		$this->mapper->expects($this->never())->method('update');
+		$this->mapper->expects($this->never())->method('claimInviteForEmail');
 
 		$response = $this->controller->attachEmailAndSend(self::TOKEN, 'recipient@example.org');
 
@@ -207,7 +235,7 @@ class FederatedInvitesControllerTest extends TestCase {
 		$this->mapper->method('findInviteByTokenAndUid')->willReturn($invite);
 
 		$this->mailer->expects($this->never())->method('send');
-		$this->mapper->expects($this->never())->method('update');
+		$this->mapper->expects($this->never())->method('claimInviteForEmail');
 
 		$response = $this->controller->attachEmailAndSend(self::TOKEN, 'recipient@example.org');
 
@@ -220,7 +248,7 @@ class FederatedInvitesControllerTest extends TestCase {
 		$this->mailer->method('validateMailAddress')->willReturn(false);
 
 		$this->mailer->expects($this->never())->method('send');
-		$this->mapper->expects($this->never())->method('update');
+		$this->mapper->expects($this->never())->method('claimInviteForEmail');
 
 		$response = $this->controller->attachEmailAndSend(self::TOKEN, 'not-an-email');
 
@@ -238,7 +266,7 @@ class FederatedInvitesControllerTest extends TestCase {
 		$this->mailer->method('validateMailAddress')->willReturn(true);
 
 		$this->mailer->expects($this->never())->method('send');
-		$this->mapper->expects($this->never())->method('update');
+		$this->mapper->expects($this->never())->method('claimInviteForEmail');
 
 		$response = $this->controller->attachEmailAndSend(self::TOKEN, 'recipient@example.org');
 
@@ -262,14 +290,17 @@ class FederatedInvitesControllerTest extends TestCase {
 		$now->method('getTimestamp')->willReturn(1_800_000_000);
 		$this->timeFactory->method('now')->willReturn($now);
 
-		$this->mapper->expects($this->exactly(2))->method('update');
+		$this->mapper->expects($this->once())
+			->method('claimInviteForEmail')
+			->willReturn(true);
+		$this->mapper->expects($this->once())
+			->method('revertInviteEmail')
+			->with(self::TOKEN, self::UID, 'recipient@example.org', $originalCreatedAt, $originalExpiredAt)
+			->willReturn(true);
 
 		$response = $this->controller->attachEmailAndSend(self::TOKEN, 'recipient@example.org');
 
 		$this->assertNotSame(Http::STATUS_OK, $response->getStatus());
-		$this->assertNull($invite->getRecipientEmail());
-		$this->assertSame($originalCreatedAt, $invite->getCreatedAt());
-		$this->assertSame($originalExpiredAt, $invite->getExpiredAt());
 	}
 
 	public function testResendInviteRejectsWhenInviteBelongsToAnotherUser(): void {
