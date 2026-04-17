@@ -235,6 +235,11 @@ const _default = {
 			inviteToken: inviteToken,
 			inviteProvider: inviteProvider,
 			ocmInvite: { email: '', message: '', note: '' },
+			ocmInvitesConfig: loadState('contacts', 'ocmInvitesConfig', {
+				optionalMail: false,
+				ccSender: true,
+				encodedCopyButton: false,
+			}),
 		}
 	},
 
@@ -663,9 +668,12 @@ const _default = {
 			this.showNewInviteForm = true
 		},
 		async sendNewInvite() {
-			// Validate: if user checked "send via email", email must be filled
+			// Validate: when the user wants to email the invite, email must be filled.
 			if (this.ocmInvite.sendEmail && !this.ocmInvite.email?.trim()) {
-				showError(t('contacts', 'Please enter an email address or uncheck "Send invite via email"'))
+				const message = this.ocmInvitesConfig.optionalMail
+					? t('contacts', 'Please enter an email address or uncheck "Send invite via email".')
+					: t('contacts', 'Please enter an email address.')
+				showError(message)
 				return
 			}
 			try {
