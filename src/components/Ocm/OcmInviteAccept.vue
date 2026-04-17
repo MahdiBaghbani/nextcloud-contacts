@@ -70,12 +70,15 @@ export default {
 	dt {
 		font-weight: 500;
 		color: var(--color-text-maxcontrast);
+		text-align: start;
 	}
 
 	dd {
 		margin: 0;
+		margin-inline-start: 0;
 		min-width: 0;
 		overflow-wrap: anywhere;
+		text-align: start;
 	}
 
 	.ocm-invite-token {
