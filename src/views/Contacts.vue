@@ -690,7 +690,7 @@ const _default = {
 		},
 		cancelNewInvite() {
 			this.showNewInviteForm = false
-			this.ocmInvite = { email: '', message: '' }
+			this.ocmInvite = { email: '', message: '', note: '' }
 		},
 	},
 }
