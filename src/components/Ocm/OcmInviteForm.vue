@@ -34,12 +34,11 @@
 					data-testid="ocm-invite-email-input"
 					@input="setEmail" />
 				<NcTextArea
+					v-model="messageModel"
 					:label="t('contacts', 'Personal message (optional)')"
 					:placeholder="t('contacts', 'Message to include in the email')"
-					:value="ocmInvite.message"
 					:rows="3"
-					data-testid="ocm-invite-message-input"
-					@update:value="setMessage" />
+					data-testid="ocm-invite-message-input" />
 				<!-- CC checkbox - only show if enabled in config -->
 				<label v-if="ccSenderEnabled" class="cc-toggle">
 					<input type="checkbox" v-model="ccSender" data-testid="ocm-invite-cc-sender-checkbox">
@@ -90,6 +89,14 @@ export default {
 			// Otherwise show based on sendEmail toggle
 			return !this.optionalMailEnabled || this.sendEmail
 		},
+		messageModel: {
+			get() {
+				return this.ocmInvite.message ?? ''
+			},
+			set(value) {
+				this.ocmInvite.message = value
+			},
+		},
 	},
 	watch: {
 		sendEmail: {
@@ -115,10 +122,6 @@ export default {
 		},
 		setEmail(e) {
 			this.ocmInvite.email = e.target.value
-		},
-		setMessage(value) {
-			// NcTextArea uses @update:value which passes the value directly
-			this.ocmInvite.message = value
 		},
 	},
 }

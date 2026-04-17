@@ -24,7 +24,7 @@
 
 		<div class="form-field">
 			<NcTextArea
-				v-model:value="message"
+				v-model="message"
 				:label="t('contacts', 'Personal message (optional)')"
 				:placeholder="t('contacts', 'Message to include in the email')"
 				:rows="3"
