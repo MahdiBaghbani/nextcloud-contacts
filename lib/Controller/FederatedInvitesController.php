@@ -632,24 +632,10 @@ class FederatedInvitesController extends PageController {
 	 */
 	private function validateEmail(string $address): ?JSONResponse {
 		if (!$this->mailer->validateMailAddress($address)) {
-			$redacted = $this->redactEmailForLogs($address);
-			$this->logger->debug("Invalid recipient email address '$redacted'", ['app' => Application::APP_ID]);
+			$this->logger->debug("Invalid recipient email address '$address'", ['app' => Application::APP_ID]);
 			return new JSONResponse(['message' => 'Recipient email address is invalid'], Http::STATUS_NOT_FOUND);
 		}
 		return null;
-	}
-
-	/**
-	 * Redacts the local part of an email address for log output. Keeps the
-	 * domain so operators can still triage by tenant/provider, but never
-	 * writes the recipient's identity to the log.
-	 */
-	private function redactEmailForLogs(string $address): string {
-		$at = strrpos($address, '@');
-		if ($at === false) {
-			return '***';
-		}
-		return '***' . substr($address, $at);
 	}
 
 	/**
@@ -707,8 +693,7 @@ class FederatedInvitesController extends PageController {
 		/** @var string[] */
 		$failedRecipients = $this->mailer->send($email);
 		if (!empty($failedRecipients)) {
-			$redacted = $this->redactEmailForLogs($address);
-			$this->logger->error("Could not send invite to '$redacted'", ['app' => Application::APP_ID]);
+			$this->logger->error("Could not send invite to '$address'", ['app' => Application::APP_ID]);
 			return new JSONResponse(['message' => "Could not send invite to '$address'"], Http::STATUS_NOT_FOUND);
 		}
 
