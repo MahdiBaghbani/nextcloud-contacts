@@ -119,7 +119,9 @@
 			</div>
 		</template>
 
-		<Modal v-if="showAttachEmailForm" @close="closeAttachEmailForm">
+		<Modal v-if="showAttachEmailForm"
+			v-model:show="showAttachEmailForm"
+			:no-close="submittingAttachEmail">
 			<OcmAttachEmailForm
 				:invite="invite"
 				:loading="submittingAttachEmail"
