@@ -81,7 +81,7 @@
 
 		<!-- new invite form -->
 		<Modal v-if="showNewInviteForm" @close="cancelNewInvite">
-			<OcmInviteForm :ocm-invite="ocmInvite">
+			<OcmInviteForm v-model:ocm-invite="ocmInvite">
 				<template #new-invite-actions>
 					<div class="new-invite-form__buttons-row">
 						<NcButton @click="sendNewInvite">

@@ -70,6 +70,7 @@ export default {
 			required: true,
 		},
 	},
+	emits: ['update:ocmInvite'],
 	data() {
 		const config = loadState('contacts', 'ocmInvitesConfig', {
 			optionalMail: false,
@@ -77,7 +78,7 @@ export default {
 			encodedCopyButton: false,
 		})
 		return {
-			sendEmail: !config.optionalMail, // Default to sending email if not optional
+			sendEmail: !config.optionalMail,
 			ccSender: false,
 			optionalMailEnabled: config.optionalMail,
 			ccSenderEnabled: config.ccSender,
@@ -94,7 +95,7 @@ export default {
 				return this.ocmInvite.message ?? ''
 			},
 			set(value) {
-				this.ocmInvite.message = value
+				this.updateInvite({ message: value })
 			},
 		},
 	},
@@ -102,26 +103,28 @@ export default {
 		sendEmail: {
 			immediate: true,
 			handler(newVal) {
-				// Expose sendEmail to parent via the invite object
-				this.ocmInvite.sendEmail = newVal
+				const patch = { sendEmail: newVal }
 				if (!newVal) {
-					this.ocmInvite.email = ''
-					this.ocmInvite.message = ''
+					patch.email = ''
+					patch.message = ''
 					this.ccSender = false
 				}
+				this.updateInvite(patch)
 			},
 		},
 		ccSender(newVal) {
-			// Expose ccSender to parent via the invite object
-			this.ocmInvite.ccSender = newVal
+			this.updateInvite({ ccSender: newVal })
 		},
 	},
 	methods: {
+		updateInvite(patch) {
+			this.$emit('update:ocmInvite', { ...this.ocmInvite, ...patch })
+		},
 		setNote(e) {
-			this.ocmInvite.note = e.target.value
+			this.updateInvite({ note: e.target.value })
 		},
 		setEmail(e) {
-			this.ocmInvite.email = e.target.value
+			this.updateInvite({ email: e.target.value })
 		},
 	},
 }
