@@ -393,6 +393,87 @@ class FederatedInvitesController extends PageController {
 	}
 
 	/**
+	 * Attaches a recipient email to an existing link-only invite and sends the
+	 * invitation email. Refreshes the creation and expiration timestamps so the
+	 * recipient receives a fresh expiry window. Reverts both the email and the
+	 * timestamps if the mailer fails, so a failed call leaves the invite as it
+	 * was before.
+	 *
+	 * @param string $token the invite token
+	 * @param string $email the recipient email address
+	 * @param string $message the optional message to include in the email
+	 * @return JSONResponse the serialized invite on success or an error message
+	 */
+	#[NoAdminRequired]
+	public function attachEmailAndSend(string $token, string $email = '', string $message = ''): JSONResponse {
+		$uid = $this->userSession->getUser()->getUID();
+		try {
+			$invite = $this->federatedInviteMapper->findInviteByTokenAndUid($token, $uid);
+		} catch (DoesNotExistException $e) {
+			$this->logger->error("Could not find invite with token=$token for user with uid=$uid", ['app' => Application::APP_ID]);
+			return new JSONResponse(['message' => 'Invite not found'], Http::STATUS_NOT_FOUND);
+		} catch (Exception $e) {
+			$this->logger->error("An unexpected error occurred loading invite with token=$token. Stacktrace: " . $e->getTraceAsString(), ['app' => Application::APP_ID]);
+			return new JSONResponse(['message' => 'An unexpected error occurred attaching the email.'], Http::STATUS_NOT_FOUND);
+		}
+
+		if ($invite->isAccepted() === true) {
+			return new JSONResponse(['message' => $this->il10->t('Invite has already been accepted.')], Http::STATUS_CONFLICT);
+		}
+		if (!empty($invite->getRecipientEmail())) {
+			return new JSONResponse(['message' => $this->il10->t('Invite already has an email address.')], Http::STATUS_CONFLICT);
+		}
+
+		if (empty($email)) {
+			return new JSONResponse(['message' => $this->il10->t('Email address is required.')], Http::STATUS_BAD_REQUEST);
+		}
+		$validationError = $this->validateEmail($email);
+		if ($validationError !== null) {
+			return $validationError;
+		}
+
+		// Reject when another open invite from this user already targets the same email.
+		$existingInvites = $this->federatedInviteMapper->findOpenInvitesByRecipientEmail($uid, $email);
+		foreach ($existingInvites as $existing) {
+			if ($existing->getToken() !== $token) {
+				$this->logger->error("An open invite already exists for user with uid $uid and for recipient email $email", ['app' => Application::APP_ID]);
+				return new JSONResponse(['message' => $this->il10->t('An open invite already exists.')], Http::STATUS_CONFLICT);
+			}
+		}
+
+		$previousCreatedAt = $invite->getCreatedAt();
+		$previousExpiredAt = $invite->getExpiredAt();
+		$invite->setRecipientEmail($email);
+		$invite->setCreatedAt($this->timeFactory->now()->getTimestamp());
+		$invite->setExpiredAt($this->federatedInvitesService->getInviteExpirationDate($invite->getCreatedAt()));
+		try {
+			$this->federatedInviteMapper->update($invite);
+		} catch (Exception $e) {
+			$this->logger->error("An unexpected error occurred updating invite with token=$token. Stacktrace: " . $e->getTraceAsString(), ['app' => Application::APP_ID]);
+			return new JSONResponse(['message' => 'An unexpected error occurred attaching the email.'], Http::STATUS_NOT_FOUND);
+		}
+
+		$senderProvider = $this->federatedInvitesService->getProviderFQDN();
+		/** @var JSONResponse */
+		$response = $this->sendEmail($token, $senderProvider, $email, $message);
+		if ($response->getStatus() !== Http::STATUS_OK) {
+			$this->logger->error("An unexpected error occurred sending the invite with token $token. HTTP response status: " . $response->getStatus(), ['app' => Application::APP_ID]);
+			// Revert the row so a failed call leaves the invite exactly as it was.
+			$invite->setRecipientEmail(null);
+			$invite->setCreatedAt($previousCreatedAt);
+			$invite->setExpiredAt($previousExpiredAt);
+			try {
+				$this->federatedInviteMapper->update($invite);
+			} catch (Exception $e) {
+				$this->logger->error("Could not revert invite with token=$token after mailer failure. Stacktrace: " . $e->getTraceAsString(), ['app' => Application::APP_ID]);
+			}
+			return $response;
+		}
+
+		return new JSONResponse($invite->jsonSerialize(), Http::STATUS_OK);
+	}
+
+	/**
 	 * Do OCM discovery on behalf of VUE frontend to avoid CSRF issues
 	 * @param string $base base url to discover
 	 * @return DataResponse
