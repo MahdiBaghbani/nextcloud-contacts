@@ -1,18 +1,13 @@
 <template>
   <div class="ocm_manual_form">
     <h5 class="">
-      {{
-        t(
-          "contacts",
-          "Accept an invite from someone outside your organisation to collaborate."
-        )
-      }}
+      {{ t("contacts", "Accept an invite to share contact information") }}
     </h5>
     <p>
       {{
         t(
           "contacts",
-          "After you have accepted the invite, both of you will appear in each others' contacts list and you can start sharing data with each other."
+          "After you accept, both of you will appear in each other's contacts list and you can start sharing data with each other."
         )
       }}
     </p>
