@@ -80,7 +80,7 @@
 		</Modal>
 
 		<!-- new invite form -->
-		<Modal v-if="showNewInviteForm" @close="cancelNewInvite">
+		<Modal v-if="showNewInviteForm" :name="t('contacts', 'Invite someone to share contacts')" @close="cancelNewInvite">
 			<OcmInviteForm v-model:ocm-invite="ocmInvite">
 				<template #new-invite-actions>
 					<div class="new-invite-form__buttons-row">
@@ -102,14 +102,14 @@
 				</template>
 			</OcmInviteForm>
 		</Modal>
-		<Modal v-if="showManualInvite" @close="manualInviteCancel">
+		<Modal v-if="showManualInvite" :name="t('contacts', 'Accept an invite')" @close="manualInviteCancel">
 			<div>
 				<OcmAcceptForm @accept="handleAccept" @cancel="manualInviteCancel" />
 			</div>
 		</Modal>
 
 		<!-- invite accept dialog -->
-		<Modal v-if="showInviteAcceptDialog">
+		<Modal v-if="showInviteAcceptDialog" :name="t('contacts', 'Accept invite')">
 			<OcmInviteAccept :token="inviteToken" :provider="inviteProvider">
 				<template #accept-invite-actions>
 					<div class="invite-accept-form__buttons-row">

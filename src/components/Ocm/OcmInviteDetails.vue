@@ -122,6 +122,7 @@
 
 		<Modal v-if="showAttachEmailForm"
 			v-model:show="showAttachEmailForm"
+			:name="t('contacts', 'Send invite via email')"
 			:no-close="submittingAttachEmail">
 			<OcmAttachEmailForm
 				:invite="invite"
