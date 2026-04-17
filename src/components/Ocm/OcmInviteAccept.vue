@@ -10,14 +10,14 @@
 		</h5>
 		<p>{{ t('contacts', 'After you accept, both of you will appear in each other\'s contacts list and you can start sharing data with each other.') }}</p>
 		<dl class="invitation-details">
-			<div class="detail-row">
-				<dt>{{ t('contacts', 'Invite code') }}</dt>
-				<dd>{{ token }}</dd>
-			</div>
-			<div class="detail-row">
-				<dt>{{ t('contacts', 'Cloud provider') }}</dt>
-				<dd>{{ provider }}</dd>
-			</div>
+			<dt>{{ t('contacts', 'Invite code') }}</dt>
+			<dd>
+				<code class="ocm-invite-token" data-testid="ocm-invite-accept-token">{{ token }}</code>
+			</dd>
+			<dt>{{ t('contacts', 'Cloud provider') }}</dt>
+			<dd>
+				<bdi class="ocm-provider-host" data-testid="ocm-invite-accept-provider">{{ provider }}</bdi>
+			</dd>
 		</dl>
 		<div class="actions">
 			<slot name="accept-invite-actions" />
@@ -61,25 +61,35 @@ export default {
 	padding: 1em;
 	background: var(--color-background-dark);
 	border-radius: var(--border-radius-large);
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	column-gap: 1em;
+	row-gap: 0.5em;
+	align-items: baseline;
 
-	.detail-row {
-		display: flex;
-		padding: 0.5em 0;
+	dt {
+		font-weight: 500;
+		color: var(--color-text-maxcontrast);
+	}
 
-		&:not(:last-child) {
-			border-bottom: 1px solid var(--color-border);
-		}
+	dd {
+		margin: 0;
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
 
-		dt {
-			flex: 0 0 120px;
-			font-weight: 500;
-			color: var(--color-text-maxcontrast);
-		}
+	.ocm-invite-token {
+		font-family: monospace;
+	}
+}
+
+@media (max-width: 480px) {
+	.invitation-details {
+		grid-template-columns: 1fr;
+		row-gap: 0.25em;
 
 		dd {
-			flex: 1;
-			margin: 0;
-			word-break: break-all;
+			margin-bottom: 0.5em;
 		}
 	}
 }
