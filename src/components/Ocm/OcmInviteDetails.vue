@@ -66,21 +66,38 @@
 				<div class="action-buttons">
 					<NcButton v-if="invite.recipientEmail"
 						type="primary"
-						@click="onResend"
-						data-testid="ocm-invite-resend-btn">
+						data-testid="ocm-invite-resend-btn"
+						@click="onResend">
 						<template #icon>
 							<CheckIcon :size="20" />
 						</template>
 						{{ t('contacts', 'Resend email') }}
 					</NcButton>
+					<NcButton v-else
+						type="primary"
+						data-testid="ocm-invite-attach-email-btn"
+						@click="openAttachEmailForm">
+						<template #icon>
+							<EmailFastOutlineIcon :size="20" />
+						</template>
+						{{ t('contacts', 'Send via email') }}
+					</NcButton>
 					<NcButton type="error"
-						@click="onRevoke"
-						data-testid="ocm-invite-revoke-btn">
+						data-testid="ocm-invite-revoke-btn"
+						@click="onRevoke">
 						{{ t('contacts', 'Revoke invite') }}
 					</NcButton>
 				</div>
 			</div>
 		</template>
+
+		<Modal v-if="showAttachEmailForm" @close="closeAttachEmailForm">
+			<OcmAttachEmailForm
+				:invite="invite"
+				:loading="submittingAttachEmail"
+				@submit="onAttachEmailSubmit"
+				@cancel="closeAttachEmailForm" />
+		</Modal>
 	</NcAppContentDetails>
 </template>
 
@@ -90,14 +107,18 @@ import {
 	NcAppContentDetails,
 	NcButton,
 	NcEmptyContent,
+	NcModal as Modal,
 } from '@nextcloud/vue'
 import { showSuccess, showError } from '@nextcloud/dialogs'
 import { loadState } from '@nextcloud/initial-state'
 
 import CheckIcon from 'vue-material-design-icons/Check.vue'
 import ContentCopyIcon from 'vue-material-design-icons/ContentCopy.vue'
+import EmailFastOutlineIcon from 'vue-material-design-icons/EmailFastOutline.vue'
 import IconAccountSwitchOutline from 'vue-material-design-icons/AccountSwitchOutline.vue'
 import moment from '@nextcloud/moment'
+
+import OcmAttachEmailForm from './OcmAttachEmailForm.vue'
 
 const dateFormat = 'lll'
 
@@ -107,10 +128,13 @@ export default {
 	components: {
 		CheckIcon,
 		ContentCopyIcon,
+		EmailFastOutlineIcon,
 		IconAccountSwitchOutline,
+		Modal,
 		NcAppContentDetails,
 		NcButton,
 		NcEmptyContent,
+		OcmAttachEmailForm,
 	},
 
 	props: {
@@ -128,6 +152,8 @@ export default {
 		})
 		return {
 			encodedCopyButtonEnabled: config.encodedCopyButton,
+			showAttachEmailForm: false,
+			submittingAttachEmail: false,
 		}
 	},
 
@@ -176,6 +202,35 @@ export default {
 		},
 		async onRevoke() {
 			await this.$store.dispatch('deleteOcmInvite', this.invite)
+		},
+		openAttachEmailForm() {
+			this.showAttachEmailForm = true
+		},
+		closeAttachEmailForm() {
+			if (this.submittingAttachEmail) {
+				return
+			}
+			this.showAttachEmailForm = false
+		},
+		async onAttachEmailSubmit({ email, message }) {
+			if (!this.invite) {
+				return
+			}
+			this.submittingAttachEmail = true
+			try {
+				await this.$store.dispatch('attachEmailAndSendOcmInvite', {
+					token: this.invite.token,
+					email,
+					message,
+				})
+				showSuccess(t('contacts', 'Invite sent to {email}', { email }))
+				this.showAttachEmailForm = false
+			} catch (error) {
+				const message = error?.response?.data?.message || t('contacts', 'Could not send invite')
+				showError(message)
+			} finally {
+				this.submittingAttachEmail = false
+			}
 		},
 	},
 
