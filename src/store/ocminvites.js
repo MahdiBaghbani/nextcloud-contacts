@@ -77,7 +77,27 @@ const actions = {
 				throw error
 			})
 		return response
-	}
+	},
+	async attachEmailAndSendOcmInvite(context, { token, email, message }) {
+		const url = generateUrl('/apps/contacts/ocm/invitations/{token}/email', { token })
+		const payload = {
+			email: email || '',
+			message: message || '',
+		}
+		const response = await axios.patch(url, payload)
+			.then(response => {
+				return response
+			})
+			.catch((error) => {
+				logger.error('Error attaching email to OCM invite with token ' + token)
+				throw error
+			})
+		if (response.data) {
+			context.commit('updateOcmInvite', response.data)
+			context.commit('sortInvites')
+		}
+		return response
+	},
 }
 
 const mutations = {
@@ -115,7 +135,7 @@ const mutations = {
 
 	/**
 	 * Deletes the invite with the specified key from the OCM invites list
-	 * 
+	 *
 	 * @param {object} state
 	 * @param {string} key
 	 */
@@ -123,7 +143,22 @@ const mutations = {
 		const index = state.sortedOcmInvites.findIndex(search => search.key === key)
 		state.sortedOcmInvites.splice(index, 1)
 		delete state.ocmInvites[key]
-	}
+	},
+
+	/**
+	 * Replaces a single cached invite with a fresh server payload, keyed by token.
+	 *
+	 * @param {object} state
+	 * @param {object} inviteData raw invite object from the API
+	 */
+	updateOcmInvite(state, inviteData) {
+		const invite = new OcmInvite(inviteData)
+		if (!invite.token) {
+			console.error('Invalid invite object', invite)
+			return
+		}
+		state.ocmInvites = { ...state.ocmInvites, [invite.key]: invite }
+	},
 }
 
 export default { state, getters, actions, mutations }
