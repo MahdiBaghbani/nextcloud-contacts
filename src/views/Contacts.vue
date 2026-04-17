@@ -80,18 +80,21 @@
 		</Modal>
 
 		<!-- new invite form -->
-		<Modal v-if="showNewInviteForm" :name="t('contacts', 'Invite someone to share contacts')" @close="cancelNewInvite">
+		<Modal v-if="showNewInviteForm"
+			:name="t('contacts', 'Invite someone to share contacts')"
+			:no-close="loadingUpdate"
+			@close="cancelNewInvite">
 			<OcmInviteForm v-model:ocm-invite="ocmInvite">
 				<template #new-invite-actions>
 					<div class="new-invite-form__buttons-row">
-						<NcButton @click="sendNewInvite">
+						<NcButton :disabled="loadingUpdate" @click="sendNewInvite">
 							<template #icon>
 								<IconLoading v-if="loadingUpdate" :size="20" />
 								<IconCheck v-else :size="20" />
 							</template>
 							{{ t("contacts", "Send invite") }}
 						</NcButton>
-						<NcButton @click="cancelNewInvite">
+						<NcButton :disabled="loadingUpdate" @click="cancelNewInvite">
 							<template #icon>
 								<IconLoading v-if="loadingUpdate" :size="20" />
 								<IconCancel v-else :size="20" />
@@ -102,25 +105,33 @@
 				</template>
 			</OcmInviteForm>
 		</Modal>
-		<Modal v-if="showManualInvite" :name="t('contacts', 'Accept an invite')" @close="manualInviteCancel">
+		<Modal v-if="showManualInvite"
+			:name="t('contacts', 'Accept an invite')"
+			:no-close="loadingUpdate"
+			@close="manualInviteCancel">
 			<div>
-				<OcmAcceptForm @accept="handleAccept" @cancel="manualInviteCancel" />
+				<OcmAcceptForm
+					:loading-update="loadingUpdate"
+					@accept="handleAccept"
+					@cancel="manualInviteCancel" />
 			</div>
 		</Modal>
 
 		<!-- invite accept dialog -->
-		<Modal v-if="showInviteAcceptDialog" :name="t('contacts', 'Accept invite')">
+		<Modal v-if="showInviteAcceptDialog"
+			:name="t('contacts', 'Accept invite')"
+			:no-close="loadingUpdate">
 			<OcmInviteAccept :token="inviteToken" :provider="inviteProvider">
 				<template #accept-invite-actions>
 					<div class="invite-accept-form__buttons-row">
-						<NcButton @click="acceptInvite">
+						<NcButton :disabled="loadingUpdate" @click="acceptInvite">
 							<template #icon>
 								<IconLoading v-if="loadingUpdate" :size="20" />
 								<IconCheck v-else :size="20" />
 							</template>
 							{{ t("contacts", "Accept") }}
 						</NcButton>
-						<NcButton @click="cancelInvite">
+						<NcButton :disabled="loadingUpdate" @click="cancelInvite">
 							<template #icon>
 								<IconLoading v-if="loadingUpdate" :size="20" />
 								<IconCancel v-else :size="20" />
@@ -235,6 +246,7 @@ const _default = {
 			inviteToken: inviteToken,
 			inviteProvider: inviteProvider,
 			ocmInvite: { email: '', message: '', note: '' },
+			loadingUpdate: false,
 			ocmInvitesConfig: loadState('contacts', 'ocmInvitesConfig', {
 				optionalMail: false,
 				ccSender: true,
@@ -632,33 +644,45 @@ const _default = {
 		 * Accept the OCM invite and redirect to the new created contact
 		 */
 		async acceptInvite() {
+			if (this.loadingUpdate) {
+				return
+			}
+			this.loadingUpdate = true
 			try {
 				const url = generateUrl('/apps/contacts/ocm/invitations/{token}/accept', { token: inviteToken })
 				const response = await axios.patch(url, {
 					provider: inviteProvider,
 				})
+				this.showInviteAcceptDialog = false
 				window.open(response.data.contact, '_self')
 			} catch (error) {
 				const serverMessage = error?.response?.data?.message
 				logger.error('Could not accept invite: ' + (serverMessage || 'unknown'), { error })
 				showError(serverMessage || this.t('contacts', 'Could not accept invite'))
-			} finally {
 				this.showInviteAcceptDialog = false
+			} finally {
+				this.loadingUpdate = false
 			}
 		},
 		async handleAccept({ provider, token }) {
+			if (this.loadingUpdate) {
+				return
+			}
+			this.loadingUpdate = true
 			try {
 				const url = generateUrl('/apps/contacts/ocm/invitations/{token}/accept', { token })
 				const response = await axios.patch(url, {
 					provider,
 				})
+				this.showManualInvite = false
 				window.open(response.data.contact, '_self')
 			} catch (error) {
 				const serverMessage = error?.response?.data?.message
 				logger.error('Could not accept invite: ' + (serverMessage || 'unknown'), { error })
 				showError(serverMessage || this.t('contacts', 'Could not accept invite'))
-			} finally {
 				this.showManualInvite = false
+			} finally {
+				this.loadingUpdate = false
 			}
 		},
 		cancelInvite() {
@@ -668,6 +692,9 @@ const _default = {
 			this.showNewInviteForm = true
 		},
 		async sendNewInvite() {
+			if (this.loadingUpdate) {
+				return
+			}
 			// Validate: when the user wants to email the invite, email must be filled.
 			if (this.ocmInvite.sendEmail && !this.ocmInvite.email?.trim()) {
 				const message = this.ocmInvitesConfig.optionalMail
@@ -676,16 +703,20 @@ const _default = {
 				showError(message)
 				return
 			}
+			this.loadingUpdate = true
 			try {
 				const response = await this.$store.dispatch(
 					'newOcmInvite',
 					this.ocmInvite,
 				)
+				this.cancelNewInvite()
 				window.open(response.data.invite, '_self')
 			} catch (error) {
 				this.cancelNewInvite()
 				const serverMessage = error?.response?.data?.message
 				showError(serverMessage || this.t('contacts', 'Could not create invite'))
+			} finally {
+				this.loadingUpdate = false
 			}
 		},
 		cancelNewInvite() {

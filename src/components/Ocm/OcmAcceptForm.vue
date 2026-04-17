@@ -23,14 +23,14 @@
       />
 
       <div class="ocm_manual_buttons">
-        <NcButton @click="accept">
+        <NcButton :disabled="loadingUpdate" @click="accept">
           <template #icon>
             <IconLoading v-if="loadingUpdate" :size="20" />
             <IconCheck v-else :size="20" />
           </template>
           {{ t("contacts", "Accept") }}
         </NcButton>
-        <NcButton @click="cancel">
+        <NcButton :disabled="loadingUpdate" @click="cancel">
           <template #icon>
             <IconLoading v-if="loadingUpdate" :size="20" />
             <IconCancel v-else :size="20" />
@@ -58,12 +58,17 @@ export default {
     IconCheck,
     IconCancel,
   },
+  props: {
+    loadingUpdate: {
+      type: Boolean,
+      default: false,
+    },
+  },
   emits: ["accept", "cancel", "parse-error"],
   data() {
     return {
       invite: "",
       error: "",
-      loadingUpdate: false,
     };
   },
   methods: {
