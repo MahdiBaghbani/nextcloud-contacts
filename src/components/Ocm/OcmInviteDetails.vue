@@ -211,12 +211,20 @@ export default {
 			// moment takes milliseconds
 			return moment(date*1000).format(dateFormat)
 		},
-		async copyToClipboard(text, label) {
+		async copyToClipboard(text, kind) {
 			try {
 				await navigator.clipboard.writeText(text)
-				showSuccess(t('contacts', '{label} copied to clipboard', { label }))
+				let message
+				if (kind === 'Invite code') {
+					message = this.t('contacts', 'Invite code copied to clipboard')
+				} else if (kind === 'Encoded invite') {
+					message = this.t('contacts', 'Encoded invite copied to clipboard')
+				} else {
+					message = this.t('contacts', 'Invite link copied to clipboard')
+				}
+				showSuccess(message)
 			} catch (error) {
-				showError(t('contacts', 'Failed to copy to clipboard'))
+				showError(this.t('contacts', 'Failed to copy to clipboard'))
 			}
 		},
 		async onResend() {
