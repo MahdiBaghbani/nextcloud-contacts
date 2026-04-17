@@ -4,7 +4,7 @@
 -->
 
 <template>
-	<div class="contact-header__infos">
+	<div class="contact-header__infos" :aria-busy="loading">
 		<h5>{{ t('contacts', 'Send this invite via email') }}</h5>
 		<p>{{ t('contacts', 'The recipient will receive an email with the invite link. Their email address will be saved on the invite so you can resend later.') }}</p>
 
@@ -100,7 +100,7 @@ export default {
 		onSubmit() {
 			const email = this.email.trim()
 			if (email.length === 0) {
-				this.error = t('contacts', 'Please enter an email address.')
+				this.error = this.t('contacts', 'Please enter an email address.')
 				return
 			}
 			this.$emit('submit', { email, message: this.message })

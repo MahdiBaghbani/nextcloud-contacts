@@ -184,7 +184,16 @@ export default {
 			encodedCopyButtonEnabled: config.encodedCopyButton,
 			showAttachEmailForm: false,
 			submittingAttachEmail: false,
+			_isMounted: false,
 		}
+	},
+
+	mounted() {
+		this._isMounted = true
+	},
+
+	beforeUnmount() {
+		this._isMounted = false
 	},
 
 	computed: {
@@ -261,13 +270,21 @@ export default {
 					email,
 					message,
 				})
+				if (!this._isMounted) {
+					return
+				}
 				showSuccess(this.t('contacts', 'Invite sent to {email}', { email }))
 				this.showAttachEmailForm = false
 			} catch (error) {
+				if (!this._isMounted) {
+					return
+				}
 				const serverMessage = error?.response?.data?.message
 				showError(serverMessage || this.t('contacts', 'Could not send invite'))
 			} finally {
-				this.submittingAttachEmail = false
+				if (this._isMounted) {
+					this.submittingAttachEmail = false
+				}
 			}
 		},
 	},
