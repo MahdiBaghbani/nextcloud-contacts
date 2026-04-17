@@ -639,9 +639,9 @@ const _default = {
 				})
 				window.open(response.data.contact, '_self')
 			} catch (error) {
-				const message = error.response?.data?.message || 'Unknown error'
-				logger.error('Could not accept invite: ' + message, { error })
-				showError(t('contacts', message))
+				const serverMessage = error?.response?.data?.message
+				logger.error('Could not accept invite: ' + (serverMessage || 'unknown'), { error })
+				showError(serverMessage || this.t('contacts', 'Could not accept invite'))
 			} finally {
 				this.showInviteAcceptDialog = false
 			}
@@ -654,9 +654,9 @@ const _default = {
 				})
 				window.open(response.data.contact, '_self')
 			} catch (error) {
-				const message = error.response?.data?.message || 'Unknown error'
-				logger.error('Could not accept invite: ' + message, { error })
-				showError(t('contacts', message))
+				const serverMessage = error?.response?.data?.message
+				logger.error('Could not accept invite: ' + (serverMessage || 'unknown'), { error })
+				showError(serverMessage || this.t('contacts', 'Could not accept invite'))
 			} finally {
 				this.showManualInvite = false
 			}
@@ -684,8 +684,8 @@ const _default = {
 				window.open(response.data.invite, '_self')
 			} catch (error) {
 				this.cancelNewInvite()
-				const message = error?.response?.data?.message ?? 'Could not create invite'
-				showError(this.t('contacts', message))
+				const serverMessage = error?.response?.data?.message
+				showError(serverMessage || this.t('contacts', 'Could not create invite'))
 			}
 		},
 		cancelNewInvite() {
