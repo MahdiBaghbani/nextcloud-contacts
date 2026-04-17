@@ -127,7 +127,7 @@ class FederatedInvitesController extends PageController {
 	public function deleteInvite(string $token): JSONResponse {
 		try {
 			$uid = $this->userSession->getUser()->getUID();
-			$invite = $this->federatedInviteMapper->findInviteByTokenAndUidd($token, $uid);
+			$invite = $this->federatedInviteMapper->findInviteByTokenAndUid($token, $uid);
 			$this->federatedInviteMapper->delete($invite);
 			return new JSONResponse(['token' => $token], Http::STATUS_OK);
 		} catch (DoesNotExistException $e) {
@@ -350,7 +350,7 @@ class FederatedInvitesController extends PageController {
 	public function resendInvite(string $token): JSONResponse {
 		$uid = $this->userSession->getUser()->getUID();
 		try {
-			$invite = $this->federatedInviteMapper->findInviteByTokenAndUidd($token, $uid);
+			$invite = $this->federatedInviteMapper->findInviteByTokenAndUid($token, $uid);
 		} catch (DoesNotExistException $e) {
 			$this->logger->error("Could not find invite with token=$token for user with uid=$uid", ['app' => Application::APP_ID]);
 			return new JSONResponse(['message' => 'Invite not found'], Http::STATUS_NOT_FOUND);

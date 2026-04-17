@@ -66,11 +66,11 @@ class FederatedInviteMapper extends QBMapper {
 	}
 
 	/**
-	 * Returns the federated invite with the specified token for the user with the specified user id
+	 * Returns the federated invite with the specified token for the user with the specified user id.
 	 *
-	 * @return FederatedInvite a list of FederatedInvite objects
+	 * @return FederatedInvite the matching invite
 	 */
-	public function findInviteByTokenAndUidd(string $token, string $userId):FederatedInvite {
+	public function findInviteByTokenAndUid(string $token, string $userId):FederatedInvite {
 		$qb = $this->db->getQueryBuilder();
 		$qb->select('*')
 			->from(self::TABLE_NAME)
