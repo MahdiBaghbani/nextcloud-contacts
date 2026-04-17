@@ -37,23 +37,51 @@
 				</div>
 
 				<!-- Share buttons -->
-				<div class="share-section" data-testid="ocm-invite-share-section">
-					<h3>{{ t('contacts', 'Share invite') }}</h3>
-					<p class="share-hint">{{ t('contacts', 'The invite link is the easiest way to share. Invite codes are for manual acceptance.') }}</p>
+				<details v-if="invite.recipientEmail"
+					class="share-section share-section--collapsible"
+					data-testid="ocm-invite-share-section">
+					<summary class="share-section__summary">
+						<span>{{ t('contacts', 'More ways to share') }}</span>
+					</summary>
+					<p class="share-hint">{{ t('contacts', 'Useful for chat apps and manual acceptance. The recipient already received the invite by email.') }}</p>
 					<div class="share-buttons">
-						<NcButton type="secondary" @click="copyToClipboard(wayfLink, 'Invite link')" data-testid="ocm-invite-link-copy-btn">
+						<NcButton type="secondary" data-testid="ocm-invite-link-copy-btn" @click="copyToClipboard(wayfLink, 'Invite link')">
 							<template #icon>
 								<ContentCopyIcon :size="20" />
 							</template>
 							{{ t('contacts', 'Copy invite link') }}
 						</NcButton>
-						<NcButton type="secondary" @click="copyToClipboard(plainInviteString, 'Invite code')" data-testid="ocm-invite-token-copy-btn">
+						<NcButton type="secondary" data-testid="ocm-invite-token-copy-btn" @click="copyToClipboard(plainInviteString, 'Invite code')">
 							<template #icon>
 								<ContentCopyIcon :size="20" />
 							</template>
 							{{ t('contacts', 'Copy invite code') }}
 						</NcButton>
-						<NcButton v-if="encodedCopyButtonEnabled" type="secondary" @click="copyToClipboard(base64InviteString, 'Encoded invite')" data-testid="ocm-invite-base64-copy-btn">
+						<NcButton v-if="encodedCopyButtonEnabled" type="secondary" data-testid="ocm-invite-base64-copy-btn" @click="copyToClipboard(base64InviteString, 'Encoded invite')">
+							<template #icon>
+								<ContentCopyIcon :size="20" />
+							</template>
+							{{ t('contacts', 'Copy encoded invite') }}
+						</NcButton>
+					</div>
+				</details>
+				<div v-else class="share-section" data-testid="ocm-invite-share-section">
+					<h3>{{ t('contacts', 'Share invite') }}</h3>
+					<p class="share-hint">{{ t('contacts', 'The invite link is the easiest way to share. Invite codes are for manual acceptance.') }}</p>
+					<div class="share-buttons">
+						<NcButton type="secondary" data-testid="ocm-invite-link-copy-btn" @click="copyToClipboard(wayfLink, 'Invite link')">
+							<template #icon>
+								<ContentCopyIcon :size="20" />
+							</template>
+							{{ t('contacts', 'Copy invite link') }}
+						</NcButton>
+						<NcButton type="secondary" data-testid="ocm-invite-token-copy-btn" @click="copyToClipboard(plainInviteString, 'Invite code')">
+							<template #icon>
+								<ContentCopyIcon :size="20" />
+							</template>
+							{{ t('contacts', 'Copy invite code') }}
+						</NcButton>
+						<NcButton v-if="encodedCopyButtonEnabled" type="secondary" data-testid="ocm-invite-base64-copy-btn" @click="copyToClipboard(base64InviteString, 'Encoded invite')">
 							<template #icon>
 								<ContentCopyIcon :size="20" />
 							</template>
@@ -306,6 +334,44 @@ export default {
 			width: 100%;
 			justify-content: flex-start;
 		}
+	}
+}
+
+.share-section--collapsible {
+	&[open] .share-section__summary::after {
+		transform: rotate(90deg);
+	}
+
+	.share-section__summary {
+		cursor: pointer;
+		user-select: none;
+		font-weight: 600;
+		font-size: 0.95em;
+		color: var(--color-text-maxcontrast);
+		list-style: none;
+		display: flex;
+		align-items: center;
+		gap: 0.5em;
+		padding: 0.25em 0;
+
+		&::-webkit-details-marker {
+			display: none;
+		}
+
+		&::after {
+			content: '';
+			display: inline-block;
+			width: 0;
+			height: 0;
+			border-top: 5px solid transparent;
+			border-bottom: 5px solid transparent;
+			border-left: 6px solid currentColor;
+			transition: transform 0.15s ease-in-out;
+		}
+	}
+
+	.share-hint {
+		margin-top: 0.5em;
 	}
 }
 
