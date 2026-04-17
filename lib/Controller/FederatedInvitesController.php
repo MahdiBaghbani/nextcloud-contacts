@@ -418,14 +418,23 @@ class FederatedInvitesController extends PageController {
 		}
 
 		if ($invite->isAccepted() === true) {
-			return new JSONResponse(['message' => $this->il10->t('Invite has already been accepted.')], Http::STATUS_CONFLICT);
+			return new JSONResponse([
+				'code' => 'ocm_invite_already_accepted',
+				'message' => $this->il10->t('Invite has already been accepted.'),
+			], Http::STATUS_CONFLICT);
 		}
 		if (!empty($invite->getRecipientEmail())) {
-			return new JSONResponse(['message' => $this->il10->t('Invite already has an email address.')], Http::STATUS_CONFLICT);
+			return new JSONResponse([
+				'code' => 'ocm_invite_already_has_email',
+				'message' => $this->il10->t('Invite already has an email address.'),
+			], Http::STATUS_CONFLICT);
 		}
 
 		if (empty($email)) {
-			return new JSONResponse(['message' => $this->il10->t('Email address is required.')], Http::STATUS_BAD_REQUEST);
+			return new JSONResponse([
+				'code' => 'ocm_invite_email_required',
+				'message' => $this->il10->t('Email address is required.'),
+			], Http::STATUS_BAD_REQUEST);
 		}
 		$validationError = $this->validateEmail($email);
 		if ($validationError !== null) {
@@ -438,7 +447,10 @@ class FederatedInvitesController extends PageController {
 		$existingInvites = $this->federatedInviteMapper->findOpenInvitesByRecipientEmail($uid, $email);
 		if (count($existingInvites) > 0) {
 			$this->logger->error("An open invite already exists for user with uid $uid and for recipient email $email", ['app' => Application::APP_ID]);
-			return new JSONResponse(['message' => $this->il10->t('An open invite already exists.')], Http::STATUS_CONFLICT);
+			return new JSONResponse([
+				'code' => 'ocm_invite_duplicate_recipient_email',
+				'message' => $this->il10->t('An open invite for this email already exists.'),
+			], Http::STATUS_CONFLICT);
 		}
 
 		$previousCreatedAt = $invite->getCreatedAt();
@@ -463,7 +475,10 @@ class FederatedInvitesController extends PageController {
 			// A concurrent attach won the race or the invite was accepted between
 			// the read and the conditional update. Treat as a 409 collision so the
 			// client can refresh and decide what to do next.
-			return new JSONResponse(['message' => $this->il10->t('An open invite already exists.')], Http::STATUS_CONFLICT);
+			return new JSONResponse([
+				'code' => 'ocm_invite_claim_failed',
+				'message' => $this->il10->t('Could not claim invite for this email; please refresh and try again.'),
+			], Http::STATUS_CONFLICT);
 		}
 
 		$invite->setRecipientEmail($email);

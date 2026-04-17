@@ -200,6 +200,7 @@ class FederatedInvitesControllerTest extends TestCase {
 		$response = $this->controller->attachEmailAndSend(self::TOKEN, 'recipient@example.org');
 
 		$this->assertSame(Http::STATUS_CONFLICT, $response->getStatus());
+		$this->assertSame('ocm_invite_claim_failed', $response->getData()['code']);
 		$this->assertNull($invite->getRecipientEmail());
 	}
 
@@ -228,6 +229,7 @@ class FederatedInvitesControllerTest extends TestCase {
 		$response = $this->controller->attachEmailAndSend(self::TOKEN, 'recipient@example.org');
 
 		$this->assertSame(Http::STATUS_CONFLICT, $response->getStatus());
+		$this->assertSame('ocm_invite_already_accepted', $response->getData()['code']);
 	}
 
 	public function testAttachEmailAndSendRejectsWhenInviteAlreadyHasEmail(): void {
@@ -240,6 +242,7 @@ class FederatedInvitesControllerTest extends TestCase {
 		$response = $this->controller->attachEmailAndSend(self::TOKEN, 'recipient@example.org');
 
 		$this->assertSame(Http::STATUS_CONFLICT, $response->getStatus());
+		$this->assertSame('ocm_invite_already_has_email', $response->getData()['code']);
 	}
 
 	public function testAttachEmailAndSendRejectsInvalidEmail(): void {
@@ -271,6 +274,7 @@ class FederatedInvitesControllerTest extends TestCase {
 		$response = $this->controller->attachEmailAndSend(self::TOKEN, 'recipient@example.org');
 
 		$this->assertSame(Http::STATUS_CONFLICT, $response->getStatus());
+		$this->assertSame('ocm_invite_duplicate_recipient_email', $response->getData()['code']);
 	}
 
 	public function testAttachEmailAndSendRevertsOnMailerFailure(): void {
