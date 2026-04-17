@@ -10,6 +10,7 @@
 
 		<div class="form-field">
 			<NcTextField
+				ref="emailField"
 				type="email"
 				:label="t('contacts', 'Recipient email')"
 				:placeholder="t('contacts', 'email@example.com')"
@@ -79,6 +80,16 @@ export default {
 		canSubmit() {
 			return !this.loading && this.email.trim().length > 0
 		},
+	},
+	mounted() {
+		// NcModal activates its focus trap on nextTick, then yields to the
+		// browser. Two animation frames is enough to land focus inside the
+		// trap without a visible flicker. See @nextcloud/vue useFocusTrap.
+		requestAnimationFrame(() => {
+			requestAnimationFrame(() => {
+				this.$refs.emailField?.focus?.()
+			})
+		})
 	},
 	methods: {
 		onEmailInput(event) {
