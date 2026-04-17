@@ -19,7 +19,7 @@
 				:helper-text="error || ''"
 				inputmode="email"
 				autocomplete="email"
-				data-testid="ocm-attach-email-input"
+				data-testid="ocm-invite-attach-email-input"
 				@input="onEmailInput" />
 		</div>
 
@@ -29,14 +29,14 @@
 				:label="t('contacts', 'Personal message (optional)')"
 				:placeholder="t('contacts', 'Message to include in the email')"
 				:rows="3"
-				data-testid="ocm-attach-email-message-input" />
+				data-testid="ocm-invite-attach-email-message-input" />
 		</div>
 
 		<div class="actions">
-			<NcButton type="tertiary" :disabled="loading" data-testid="ocm-attach-email-cancel-btn" @click="onCancel">
+			<NcButton type="tertiary" :disabled="loading" data-testid="ocm-invite-attach-email-cancel-btn" @click="onCancel">
 				{{ t('contacts', 'Cancel') }}
 			</NcButton>
-			<NcButton type="primary" :disabled="!canSubmit" data-testid="ocm-attach-email-submit-btn" @click="onSubmit">
+			<NcButton type="primary" :disabled="!canSubmit" data-testid="ocm-invite-attach-email-submit-btn" @click="onSubmit">
 				<template #icon>
 					<EmailFastOutlineIcon :size="20" />
 				</template>
