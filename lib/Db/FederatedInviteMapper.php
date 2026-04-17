@@ -39,7 +39,7 @@ class FederatedInviteMapper extends QBMapper {
 	/**
 	 * Returns all open federated invites for the user with the specified user id
 	 *
-	 * @return array a list of FederatedInvite objects
+	 * @return list<FederatedInvite>
 	 */
 	public function findOpenInvitesByUid(string $userId):array {
 		$qb = $this->db->getQueryBuilder();
@@ -53,7 +53,7 @@ class FederatedInviteMapper extends QBMapper {
 	/**
 	 * Returns all open federated invites for the user with the specified user id and for the specified recipient email
 	 *
-	 * @return array a list of FederatedInvite objects
+	 * @return list<FederatedInvite>
 	 */
 	public function findOpenInvitesByRecipientEmail(string $userId, string $email):array {
 		$qb = $this->db->getQueryBuilder();
@@ -109,11 +109,12 @@ class FederatedInviteMapper extends QBMapper {
 
 	/**
 	 * Best-effort revert of a previous claim made by claimInviteForEmail().
-	 * Only undoes the change when the row still has the email we set and is
-	 * still unaccepted, so a revert can never overwrite a successful accept
-	 * race or another user's later claim.
+	 * Scoped to the same sender (user_id) and only takes effect when the row
+	 * still has the email we set and is still unaccepted, so the revert
+	 * cannot undo a successful accept and cannot run if a concurrent attach
+	 * changed recipient_email between the claim and the revert.
 	 *
-	 * Returns true when the revert took effect.
+	 * Returns true when the revert took effect (exactly one row updated).
 	 */
 	public function revertInviteEmail(
 		string $token,
