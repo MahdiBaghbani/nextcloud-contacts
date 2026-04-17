@@ -592,6 +592,21 @@ class FederatedInvitesController extends PageController {
 	}
 
 	/**
+	 * Persist an OCM invite bool admin setting. Admin-only by default since the
+	 * method is not marked with NoAdminRequired.
+	 *
+	 * @param string $key one of FederatedInvitesService::OCM_INVITES_BOOL_KEYS
+	 * @param bool $value the new value
+	 * @return JSONResponse empty body with the appropriate HTTP status
+	 */
+	public function setOcmInviteBoolSetting(string $key, bool $value): JSONResponse {
+		if (!$this->federatedInvitesService->setOcmInviteBoolSetting($key, $value)) {
+			return new JSONResponse(['message' => 'Unknown setting key'], Http::STATUS_FORBIDDEN);
+		}
+		return new JSONResponse([], Http::STATUS_OK);
+	}
+
+	/**
 	 * Validate a recipient email address against the configured mailer.
 	 *
 	 * @return JSONResponse|null Error response on invalid input, null when valid.

@@ -71,6 +71,27 @@ class FederatedInvitesService {
 	}
 
 	/**
+	 * The set of admin-toggleable OCM bool keys. Used to gate writes from the
+	 * admin settings page so callers cannot persist arbitrary keys.
+	 */
+	public const OCM_INVITES_BOOL_KEYS = [
+		'ocm_invites_optional_mail',
+		'ocm_invites_cc_sender',
+		'ocm_invites_encoded_copy_button',
+	];
+
+	/**
+	 * Persist an OCM admin bool toggle. Returns true when the key is allowed.
+	 */
+	public function setOcmInviteBoolSetting(string $key, bool $value): bool {
+		if (!in_array($key, self::OCM_INVITES_BOOL_KEYS, true)) {
+			return false;
+		}
+		$this->appConfig->setValueBool(Application::APP_ID, $key, $value);
+		return true;
+	}
+
+	/**
 	 * Returns all OCM invites config flags for frontend consumption
 	 */
 	public function getOcmInvitesConfig(): array {

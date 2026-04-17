@@ -18,6 +18,7 @@ return [
 		['name' => 'federated_invites#accept_invite', 'url' => '/ocm/invitations/{token}/accept', 'verb' => 'PATCH'],
 		['name' => 'federated_invites#resend_invite', 'url' => '/ocm/invitations/{token}/resend', 'verb' => 'PATCH'],
 		['name' => 'federated_invites#attach_email_and_send', 'url' => '/ocm/invitations/{token}/email', 'verb' => 'PATCH'],
+		['name' => 'federated_invites#set_ocm_invite_bool_setting', 'url' => '/ocm/admin/settings/{key}', 'verb' => 'PUT'],
 		['name' => 'federated_invites#invite_accept_dialog', 'url' => FederatedInvitesService::OCM_INVITE_ACCEPT_DIALOG_ROUTE, 'verb' => 'GET'],
 		['name' => 'federated_invites#wayf', 'url' => '/wayf', 'verb' => 'GET'],
 		['name' => 'federated_invites#discover', 'url' => '/discover', 'verb' => 'GET'],
