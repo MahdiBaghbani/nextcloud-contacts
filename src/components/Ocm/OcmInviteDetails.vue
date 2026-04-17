@@ -97,7 +97,7 @@
 						data-testid="ocm-invite-resend-btn"
 						@click="onResend">
 						<template #icon>
-							<CheckIcon :size="20" />
+							<EmailFastOutlineIcon :size="20" />
 						</template>
 						{{ t('contacts', 'Resend email') }}
 					</NcButton>
@@ -140,7 +140,6 @@ import {
 import { showSuccess, showError } from '@nextcloud/dialogs'
 import { loadState } from '@nextcloud/initial-state'
 
-import CheckIcon from 'vue-material-design-icons/Check.vue'
 import ContentCopyIcon from 'vue-material-design-icons/ContentCopy.vue'
 import EmailFastOutlineIcon from 'vue-material-design-icons/EmailFastOutline.vue'
 import IconAccountSwitchOutline from 'vue-material-design-icons/AccountSwitchOutline.vue'
@@ -154,7 +153,6 @@ export default {
 	name: 'OcmInviteDetails',
 
 	components: {
-		CheckIcon,
 		ContentCopyIcon,
 		EmailFastOutlineIcon,
 		IconAccountSwitchOutline,
