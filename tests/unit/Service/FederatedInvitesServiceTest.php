@@ -105,4 +105,35 @@ class FederatedInvitesServiceTest extends TestCase {
 
 		$this->assertEquals($json, $this->federatedInvitesService->inviteAccepted($recipientProvider, $token, $recipientId, $recipientEmail, $recipientName));
 	}
+
+	public function testSetOcmInviteBoolSettingWritesAllowedKey(): void {
+		$this->appConfig->expects(self::once())
+			->method('setValueBool')
+			->with('contacts', 'ocm_invites_optional_mail', true);
+
+		$result = $this->federatedInvitesService->setOcmInviteBoolSetting('ocm_invites_optional_mail', true);
+
+		$this->assertTrue($result);
+	}
+
+	public function testSetOcmInviteBoolSettingRejectsUnknownKey(): void {
+		$this->appConfig->expects(self::never())
+			->method('setValueBool');
+
+		$result = $this->federatedInvitesService->setOcmInviteBoolSetting('ocm_invites_arbitrary_unknown_key', true);
+
+		$this->assertFalse($result);
+	}
+
+	public function testSetOcmInviteBoolSettingCoversEachAllowedKey(): void {
+		$this->appConfig->expects(self::exactly(count(FederatedInvitesService::OCM_INVITES_BOOL_KEYS)))
+			->method('setValueBool');
+
+		foreach (FederatedInvitesService::OCM_INVITES_BOOL_KEYS as $key) {
+			$this->assertTrue(
+				$this->federatedInvitesService->setOcmInviteBoolSetting($key, false),
+				"Allowed key '$key' should be writable",
+			);
+		}
+	}
 }

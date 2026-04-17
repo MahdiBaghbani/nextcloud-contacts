@@ -315,4 +315,26 @@ class FederatedInvitesControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
 	}
+
+	public function testSetOcmInviteBoolSettingReturnsOkOnAllowedKey(): void {
+		$this->invitesService->expects($this->once())
+			->method('setOcmInviteBoolSetting')
+			->with('ocm_invites_optional_mail', true)
+			->willReturn(true);
+
+		$response = $this->controller->setOcmInviteBoolSetting('ocm_invites_optional_mail', true);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testSetOcmInviteBoolSettingReturnsForbiddenOnUnknownKey(): void {
+		$this->invitesService->expects($this->once())
+			->method('setOcmInviteBoolSetting')
+			->with('not_a_real_key', true)
+			->willReturn(false);
+
+		$response = $this->controller->setOcmInviteBoolSetting('not_a_real_key', true);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
 }
