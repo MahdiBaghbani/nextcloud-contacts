@@ -303,6 +303,55 @@ class FederatedInvitesControllerTest extends TestCase {
 		$this->assertNotSame(Http::STATUS_OK, $response->getStatus());
 	}
 
+	public function testAttachEmailAndSendEscapesUserContentInHtmlBody(): void {
+		$invite = $this->makeInvite(null);
+		$this->mapper->method('findInviteByTokenAndUid')->willReturn($invite);
+		$this->mapper->method('findOpenInvitesByRecipientEmail')->willReturn([]);
+		$this->mailer->method('validateMailAddress')->willReturn(true);
+		$this->wayfProvider->method('getWayfEndpoint')->willReturn('https://example.org/wayf');
+		$this->invitesService->method('getProviderFQDN')->willReturn('example.org');
+		$this->invitesService->method('getInviteExpirationDate')->willReturnCallback(static fn (int $t): int => $t + 2_592_000);
+		$now = $this->createMock(\DateTimeImmutable::class);
+		$now->method('getTimestamp')->willReturn(1_800_000_000);
+		$this->timeFactory->method('now')->willReturn($now);
+		$this->mapper->method('claimInviteForEmail')->willReturn(true);
+
+		$user = $this->createMock(IUser::class);
+		$user->method('getUID')->willReturn(self::UID);
+		$user->method('getDisplayName')->willReturn('Eve <script>');
+		$user->method('getEMailAddress')->willReturn(null);
+		$session = $this->createMock(IUserSession::class);
+		$session->method('getUser')->willReturn($user);
+		$reflection = new \ReflectionProperty(FederatedInvitesController::class, 'userSession');
+		$reflection->setAccessible(true);
+		$reflection->setValue($this->controller, $session);
+
+		$capturedHtml = null;
+		$capturedPlain = null;
+		$message = $this->createMock(\OCP\Mail\IMessage::class);
+		$message->method('setHtmlBody')->willReturnCallback(function ($body) use (&$capturedHtml, $message) {
+			$capturedHtml = $body;
+			return $message;
+		});
+		$message->method('setPlainBody')->willReturnCallback(function ($body) use (&$capturedPlain, $message) {
+			$capturedPlain = $body;
+			return $message;
+		});
+		$this->mailer->method('createMessage')->willReturn($message);
+		$this->mailer->method('send')->willReturn([]);
+
+		$response = $this->controller->attachEmailAndSend(self::TOKEN, 'recipient@example.org', '<b>note</b>');
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertNotNull($capturedHtml);
+		$this->assertStringNotContainsString('<script>', (string)$capturedHtml);
+		$this->assertStringContainsString('Eve &lt;script&gt;', (string)$capturedHtml);
+		$this->assertStringNotContainsString('<b>note</b>', (string)$capturedHtml);
+		$this->assertStringContainsString('&lt;b&gt;note&lt;/b&gt;', (string)$capturedHtml);
+		$this->assertNotNull($capturedPlain);
+		$this->assertStringContainsString('<b>note</b>', (string)$capturedPlain);
+	}
+
 	public function testAttachEmailAndSendRevertsWhenMailerThrows(): void {
 		$invite = $this->makeInvite(null);
 		$originalCreatedAt = $invite->getCreatedAt();

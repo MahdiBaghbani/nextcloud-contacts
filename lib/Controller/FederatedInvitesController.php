@@ -593,16 +593,28 @@ class FederatedInvitesController extends PageController {
 			$inviteLink = "$wayfEndpoint?token=$token";
 			$encoded = base64_encode("$token@$senderProvider");
 
-			$header = $this->il10->t('This is a copy of the invite you sent to %1$s.<br><br>', [$recipientAddress]);
-			$inviteLinkNote = $this->il10->t('Invite link: %1$s<br>', [$inviteLink]);
-			$inviteDetails = $this->il10->t('Invite code: %1$s<br>Encoded invite: %2$s<br>', ["$token@$senderProvider", $encoded]);
+			$recipientH = htmlspecialchars($recipientAddress, ENT_QUOTES, 'UTF-8');
+			$inviteLinkH = htmlspecialchars($inviteLink, ENT_QUOTES, 'UTF-8');
+			$tokenSenderH = htmlspecialchars("$token@$senderProvider", ENT_QUOTES, 'UTF-8');
+			$encodedH = htmlspecialchars($encoded, ENT_QUOTES, 'UTF-8');
+			$messageH = nl2br(htmlspecialchars($message, ENT_QUOTES, 'UTF-8'), false);
 
-			$messageLineBreaksToHtml = str_replace("\n", '<br>', $message);
-			$messageSection = trim($message) === '' ? '' : "<br>Your message:<br>$messageLineBreaksToHtml<br>";
+			$header = $this->il10->t('This is a copy of the invite you sent to %1$s.<br><br>', [$recipientH]);
+			$inviteLinkNote = $this->il10->t('Invite link: %1$s<br>', [$inviteLinkH]);
+			$inviteDetails = $this->il10->t('Invite code: %1$s<br>Encoded invite: %2$s<br>', [$tokenSenderH, $encodedH]);
+			$messageHeading = $this->il10->t('Your message:');
+			$messageSection = trim($message) === '' ? '' : "<br>$messageHeading<br>$messageH<br>";
 
-			$body = "$header$messageSection$inviteLinkNote$inviteDetails";
-			$email->setHtmlBody($body);
-			$email->setPlainBody(strip_tags(str_replace(['<br>', '<br/>', '<br />'], "\n", $body)));
+			$htmlBody = "$header$messageSection$inviteLinkNote$inviteDetails";
+			$email->setHtmlBody($htmlBody);
+
+			$plainHeader = $this->il10->t('This is a copy of the invite you sent to %1$s.', [$recipientAddress]);
+			$plainInviteLine = $this->il10->t('Invite link: %1$s', [$inviteLink]);
+			$plainInviteCode = $this->il10->t('Invite code: %1$s', ["$token@$senderProvider"]);
+			$plainEncoded = $this->il10->t('Encoded invite: %1$s', [$encoded]);
+			$plainMessageSection = trim($message) === '' ? '' : "\n$messageHeading\n$message\n";
+			$plainBody = "$plainHeader\n$plainMessageSection\n$plainInviteLine\n$plainInviteCode\n$plainEncoded\n";
+			$email->setPlainBody($plainBody);
 
 			$this->mailer->send($email);
 		} catch (Exception $e) {
@@ -673,20 +685,30 @@ class FederatedInvitesController extends PageController {
 			return new JSONResponse(['message' => 'Could not send invite.'], Http::STATUS_NOT_FOUND);
 		}
 		$inviteLink = "$wayfEndpoint?token=$token";
-
-		$header = $this->il10->t('Hi there,<br><br>%1$s invites you to share contact information using your cloud account.<br>', [$initiatorDisplayName]);
-
-		$messageLineBreaksToHtml = str_replace("\n", '<br>', $message);
-		$messageSection = trim($message) === '' ? '' : "<br>---<br>$messageLineBreaksToHtml<br>---<br>";
-
-		$inviteLinkNote = $this->il10->t('<br>To accept this invite, click the link below and sign in with your cloud provider:<br><br><a href="%1$s">%1$s</a><br>', [$inviteLink]);
-
 		$encoded = base64_encode("$token@$senderProvider");
-		$technicalDetails = $this->il10->t('<br><small>Technical details (for advanced setups):<br>Invite code: %1$s<br>Encoded invite: %2$s</small>', ["$token@$senderProvider", $encoded]);
 
-		$body = "$header$messageSection$inviteLinkNote$technicalDetails";
-		$email->setHtmlBody($body);
-		$email->setPlainBody(strip_tags(str_replace(['<br>', '<br/>', '<br />'], "\n", $body)));
+		$initiatorDisplayNameH = htmlspecialchars($initiatorDisplayName, ENT_QUOTES, 'UTF-8');
+		$inviteLinkH = htmlspecialchars($inviteLink, ENT_QUOTES, 'UTF-8');
+		$tokenSenderH = htmlspecialchars("$token@$senderProvider", ENT_QUOTES, 'UTF-8');
+		$encodedH = htmlspecialchars($encoded, ENT_QUOTES, 'UTF-8');
+		$messageH = nl2br(htmlspecialchars($message, ENT_QUOTES, 'UTF-8'), false);
+
+		$header = $this->il10->t('Hi there,<br><br>%1$s invites you to share contact information using your cloud account.<br>', [$initiatorDisplayNameH]);
+		$messageSection = trim($message) === '' ? '' : "<br>---<br>$messageH<br>---<br>";
+		$inviteLinkNote = $this->il10->t('<br>To accept this invite, click the link below and sign in with your cloud provider:<br><br><a href="%1$s">%1$s</a><br>', [$inviteLinkH]);
+		$technicalDetails = $this->il10->t('<br><small>Technical details (for advanced setups):<br>Invite code: %1$s<br>Encoded invite: %2$s</small>', [$tokenSenderH, $encodedH]);
+
+		$htmlBody = "$header$messageSection$inviteLinkNote$technicalDetails";
+		$email->setHtmlBody($htmlBody);
+
+		$plainHeader = $this->il10->t('Hi there,', []) . "\n\n" . $this->il10->t('%1$s invites you to share contact information using your cloud account.', [$initiatorDisplayName]);
+		$plainMessageSection = trim($message) === '' ? '' : "\n---\n$message\n---\n";
+		$plainInviteLinkNote = $this->il10->t('To accept this invite, click the link below and sign in with your cloud provider:', []) . "\n\n" . $inviteLink;
+		$plainTechnical = $this->il10->t('Technical details (for advanced setups):', []) . "\n"
+			. $this->il10->t('Invite code: %1$s', ["$token@$senderProvider"]) . "\n"
+			. $this->il10->t('Encoded invite: %1$s', [$encoded]);
+		$plainBody = "$plainHeader\n$plainMessageSection\n$plainInviteLinkNote\n\n$plainTechnical\n";
+		$email->setPlainBody($plainBody);
 
 		try {
 			/** @var string[] $failedRecipients */
