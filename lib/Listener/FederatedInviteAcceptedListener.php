@@ -9,66 +9,63 @@ declare(strict_types=1);
 
 namespace OCA\Contacts\Listener;
 
+use Exception;
+use OCA\CloudFederationAPI\Events\FederatedInviteAcceptedEvent;
 use OCA\Contacts\AppInfo\Application;
-use OCA\Contacts\Service\FederatedInvitesService;
 use OCA\Contacts\Service\SocialApiService;
 use OCA\FederatedFileSharing\AddressHandler;
-use OCP\AppFramework\Http;
-use OCP\AppFramework\Http\JSONResponse;
 use OCP\EventDispatcher\Event;
 use OCP\EventDispatcher\IEventListener;
-use OCP\OCM\Events\OCMEndpointRequestEvent;
 use Psr\Log\LoggerInterface;
 
 /**
- * Listener for the OCMEndpointRequestEvent.
+ * Listens to the federated invite accepted event.
+ * Catching the event should lead to the creation of the new remote contact
+ * from the invite, in the inviter's address book.
+ *
+ * @template-implements IEventListener<FederatedInviteAcceptedEvent>
  */
-/** @template-implements IEventListener<OCMEndpointRequestEvent> */
 class FederatedInviteAcceptedListener implements IEventListener {
 
 	public function __construct(
 		private AddressHandler $addressHandler,
-		private FederatedInvitesService $federatedInvitesService,
 		private SocialApiService $socialApiService,
 		private LoggerInterface $logger,
 	) {
 	}
 
 	/**
-	 * Handles the OCMEndpointRequestEvent that is dispatched by the OCMRequestController as response to an OCM request.
-	 * This handler will handle the capability: invite-accepted
-	 *
-	 * @param Event $event an event of type OCMEndpointRequestEvent
-	 * @return void
+	 * Handles the FederatedInviteAcceptedEvent dispatched by the server when an
+	 * invite has been accepted. The accepted invitation is enclosed in the event.
+	 * Creates and saves a new contact in the address book of the sender of the
+	 * invitation. There is no user session at this point.
 	 */
 	public function handle(Event $event): void {
-		if ($event instanceof \OCP\OCM\Events\OCMEndpointRequestEvent
-			&& $event->getRequestedCapability() === 'invite-accepted') {
-
-			/** @var JSONResponse */
-			$response = null;
-
-			$recipientProvider = $event->getPayload()['recipientProvider'];
-			$token = $event->getPayload()['token'];
-			$userID = $event->getPayload()['userID'];
-			$email = $event->getPayload()['email'];
-			$name = $event->getPayload()['name'];
-
-			if ($recipientProvider === '' || $userID === '' || $email === '' || $name === '') {
-				$this->logger->error("All of these must be set: recipientProvider: $recipientProvider, email: $email, userId: $userID, name: $name", ['app' => Application::APP_ID]);
-				$response = new JSONResponse(['message' => 'Could not accept invite, user data is incomplete.'], Http::STATUS_NOT_FOUND);
-			}
-
-			$response = $this->federatedInvitesService->inviteAccepted(
-				$recipientProvider,
-				$token,
-				$userID,
-				$email,
-				$name
-			);
-
-			$event->setResponse($response);
+		if (!($event instanceof FederatedInviteAcceptedEvent)) {
+			return;
 		}
-		return;
+
+		$invitation = $event->getInvitation();
+		$userId = $invitation->getUserId();
+		$cloudId = $invitation->getRecipientUserId() . '@' . $this->addressHandler->removeProtocolFromUrl($invitation->getRecipientProvider());
+
+		try {
+			$newContact = $this->socialApiService->createFederatedContact(
+				$cloudId,
+				$invitation->getRecipientEmail(),
+				$invitation->getRecipientName(),
+				$userId,
+			);
+			if (isset($newContact)) {
+				$this->logger->info('Created new contact with UID: ' . $newContact['UID'] . " for user with UID: $userId", ['app' => Application::APP_ID]);
+			}
+		} catch (Exception $e) {
+			$this->logger->error('An unexpected error occurred creating a new contact.', [
+				'app' => Application::APP_ID,
+				'exception' => $e,
+				'userId' => $userId,
+				'cloudId' => $cloudId,
+			]);
+		}
 	}
 }

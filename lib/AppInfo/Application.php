@@ -6,6 +6,7 @@
  */
 namespace OCA\Contacts\AppInfo;
 
+use OCA\CloudFederationAPI\Events\FederatedInviteAcceptedEvent;
 use OCA\Contacts\Capabilities;
 use OCA\Contacts\Dav\PatchPlugin;
 use OCA\Contacts\Event\LoadContactsOcaApiEvent;
@@ -21,7 +22,6 @@ use OCP\AppFramework\Bootstrap\IBootstrap;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
 use OCP\EventDispatcher\IEventDispatcher;
 use OCP\OCM\Events\LocalOCMDiscoveryEvent;
-use OCP\OCM\Events\OCMEndpointRequestEvent;
 
 class Application extends App implements IBootstrap {
 	public const APP_ID = 'contacts';
@@ -40,7 +40,7 @@ class Application extends App implements IBootstrap {
 
 		$context->registerEventListener(LoadAdditionalScriptsEvent::class, LoadContactsFilesActions::class);
 		$context->registerEventListener(LoadContactsOcaApiEvent::class, LoadContactsOcaApi::class);
-		$context->registerEventListener(OCMEndpointRequestEvent::class, FederatedInviteAcceptedListener::class);
+		$context->registerEventListener(FederatedInviteAcceptedEvent::class, FederatedInviteAcceptedListener::class);
 		$context->registerEventListener(LocalOCMDiscoveryEvent::class, OcmDiscoveryListener::class);
 	}
 
