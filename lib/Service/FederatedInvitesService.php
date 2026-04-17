@@ -199,7 +199,11 @@ class FederatedInvitesService {
 			);
 		} catch (ContactExistsException $e) {
 			// this is not an OCM exception
-			$this->logger->info("Contact with cloud id $cloudId already exists. ");
+			$this->logger->warning('Contact with cloud id {cloudId} already exists for user {userId}.', [
+				'app' => Application::APP_ID,
+				'cloudId' => $cloudId,
+				'userId' => $localUser->getUID(),
+			]);
 		}
 		return new JSONResponse($response, $status);
 	}
@@ -226,7 +230,11 @@ class FederatedInvitesService {
 			$localUserId,
 		);
 		if (!isset($newContact)) {
-			$this->logger->error('Error creating contact .', ['app' => Application::APP_ID]);
+			$this->logger->error('Error creating contact for user {userId} with cloud id {cloudId}.', [
+				'app' => Application::APP_ID,
+				'userId' => $localUserId,
+				'cloudId' => $cloudId,
+			]);
 			return null;
 		}
 		$this->logger->info('Created new contact with UID: ' . $newContact['UID'] . ' for user with UID: ' . $localUserId, ['app' => Application::APP_ID]);

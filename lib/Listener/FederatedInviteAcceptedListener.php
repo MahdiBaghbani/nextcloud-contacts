@@ -49,6 +49,14 @@ class FederatedInviteAcceptedListener implements IEventListener {
 		$userId = $invitation->getUserId();
 		$cloudId = $invitation->getRecipientUserId() . '@' . $this->addressHandler->removeProtocolFromUrl($invitation->getRecipientProvider());
 
+		$token = (string)$invitation->getToken();
+		$tokenSuffix = strlen($token) >= 4 ? substr($token, -4) : '****';
+		$this->logger->info('Received invite-accepted event for user {userId} tokenSuffix={tokenSuffix}', [
+			'app' => Application::APP_ID,
+			'userId' => $userId,
+			'tokenSuffix' => $tokenSuffix,
+		]);
+
 		try {
 			$newContact = $this->socialApiService->createFederatedContact(
 				$cloudId,
