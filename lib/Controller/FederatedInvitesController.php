@@ -511,6 +511,19 @@ class FederatedInvitesController extends PageController {
 	}
 
 	/**
+	 * Validate a recipient email address against the configured mailer.
+	 *
+	 * @return JSONResponse|null Error response on invalid input, null when valid.
+	 */
+	private function validateEmail(string $address): ?JSONResponse {
+		if (!$this->mailer->validateMailAddress($address)) {
+			$this->logger->error("Invalid recipient email address '$address'", ['app' => Application::APP_ID]);
+			return new JSONResponse(['message' => 'Recipient email address is invalid'], Http::STATUS_NOT_FOUND);
+		}
+		return null;
+	}
+
+	/**
 	 * @param string $token the invite token
 	 * @param string $senderProvider this provider
 	 * @param string $address the recipient email address to send the invitation to
@@ -518,12 +531,12 @@ class FederatedInvitesController extends PageController {
 	 * @return JSONResponse
 	 */
 	private function sendEmail(string $token, string $senderProvider, string $address, string $message): JSONResponse {
+		$validationError = $this->validateEmail($address);
+		if ($validationError !== null) {
+			return $validationError;
+		}
 		/** @var IMessage */
 		$email = $this->mailer->createMessage();
-		if (!$this->mailer->validateMailAddress($address)) {
-			$this->logger->error("Could not sent invite, invalid email address '$address'", ['app' => Application::APP_ID]);
-			return new JSONResponse(['message' => 'Recipient email address is invalid'], Http::STATUS_NOT_FOUND);
-		}
 		$email->setTo([$address]);
 
 		$instanceName = $this->defaults->getName();
