@@ -131,7 +131,7 @@ class FederatedInvitesController extends PageController {
 			$this->federatedInviteMapper->delete($invite);
 			return new JSONResponse(['token' => $token], Http::STATUS_OK);
 		} catch (DoesNotExistException $e) {
-			$this->logger->error("Could not find invite with token=$token for user with uid=$uid . Stacktrace: " . $e->getTraceAsString(), ['app' => Application::APP_ID]);
+			$this->logger->warning("Could not find invite with token=$token for user with uid=$uid", ['app' => Application::APP_ID]);
 			return new JSONResponse(['message' => 'An unexpected error occurred trying to delete the invite'], Http::STATUS_NOT_FOUND);
 		} catch (Exception $e) {
 			$this->logger->error("An unexpected error occurred deleting invite with token=$token. Stacktrace: " . $e->getTraceAsString(), ['app' => Application::APP_ID]);
@@ -352,7 +352,7 @@ class FederatedInvitesController extends PageController {
 		try {
 			$invite = $this->federatedInviteMapper->findInviteByTokenAndUid($token, $uid);
 		} catch (DoesNotExistException $e) {
-			$this->logger->error("Could not find invite with token=$token for user with uid=$uid", ['app' => Application::APP_ID]);
+			$this->logger->warning("Could not find invite with token=$token for user with uid=$uid", ['app' => Application::APP_ID]);
 			return new JSONResponse(['message' => 'Invite not found'], Http::STATUS_NOT_FOUND);
 		} catch (Exception $e) {
 			$this->logger->error("An unexpected error occurred loading invite with token=$token. Stacktrace: " . $e->getTraceAsString(), ['app' => Application::APP_ID]);
@@ -410,7 +410,7 @@ class FederatedInvitesController extends PageController {
 		try {
 			$invite = $this->federatedInviteMapper->findInviteByTokenAndUid($token, $uid);
 		} catch (DoesNotExistException $e) {
-			$this->logger->error("Could not find invite with token=$token for user with uid=$uid", ['app' => Application::APP_ID]);
+			$this->logger->warning("Could not find invite with token=$token for user with uid=$uid", ['app' => Application::APP_ID]);
 			return new JSONResponse(['message' => 'Invite not found'], Http::STATUS_NOT_FOUND);
 		} catch (Exception $e) {
 			$this->logger->error("An unexpected error occurred loading invite with token=$token. Stacktrace: " . $e->getTraceAsString(), ['app' => Application::APP_ID]);
@@ -632,10 +632,24 @@ class FederatedInvitesController extends PageController {
 	 */
 	private function validateEmail(string $address): ?JSONResponse {
 		if (!$this->mailer->validateMailAddress($address)) {
-			$this->logger->error("Invalid recipient email address '$address'", ['app' => Application::APP_ID]);
+			$redacted = $this->redactEmailForLogs($address);
+			$this->logger->debug("Invalid recipient email address '$redacted'", ['app' => Application::APP_ID]);
 			return new JSONResponse(['message' => 'Recipient email address is invalid'], Http::STATUS_NOT_FOUND);
 		}
 		return null;
+	}
+
+	/**
+	 * Redacts the local part of an email address for log output. Keeps the
+	 * domain so operators can still triage by tenant/provider, but never
+	 * writes the recipient's identity to the log.
+	 */
+	private function redactEmailForLogs(string $address): string {
+		$at = strrpos($address, '@');
+		if ($at === false) {
+			return '***';
+		}
+		return '***' . substr($address, $at);
 	}
 
 	/**
@@ -693,8 +707,9 @@ class FederatedInvitesController extends PageController {
 		/** @var string[] */
 		$failedRecipients = $this->mailer->send($email);
 		if (!empty($failedRecipients)) {
-			$this->logger->error("Could not sent invite to '$address'", ['app' => Application::APP_ID]);
-			return new JSONResponse(['message' => "Could not sent invite to '$address'"], Http::STATUS_NOT_FOUND);
+			$redacted = $this->redactEmailForLogs($address);
+			$this->logger->error("Could not send invite to '$redacted'", ['app' => Application::APP_ID]);
+			return new JSONResponse(['message' => "Could not send invite to '$address'"], Http::STATUS_NOT_FOUND);
 		}
 
 		return new JSONResponse([], Http::STATUS_OK);
