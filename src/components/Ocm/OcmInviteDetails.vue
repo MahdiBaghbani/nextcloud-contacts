@@ -231,9 +231,9 @@ export default {
 			try {
 				const response = await this.$store.dispatch('resendOcmInvite', this.invite)
 				window.open(response.data.invite, '_self')
-			} catch(error) {
-				const message = error.response.data.message
-				showError(t('contacts', message))
+			} catch (error) {
+				const message = error?.response?.data?.message ?? 'Could not resend invite'
+				showError(this.t('contacts', message))
 			}
 		},
 		async onRevoke() {
@@ -259,11 +259,11 @@ export default {
 					email,
 					message,
 				})
-				showSuccess(t('contacts', 'Invite sent to {email}', { email }))
+				showSuccess(this.t('contacts', 'Invite sent to {email}', { email }))
 				this.showAttachEmailForm = false
 			} catch (error) {
-				const message = error?.response?.data?.message || t('contacts', 'Could not send invite')
-				showError(message)
+				const message = error?.response?.data?.message ?? 'Could not send invite'
+				showError(this.t('contacts', message))
 			} finally {
 				this.submittingAttachEmail = false
 			}

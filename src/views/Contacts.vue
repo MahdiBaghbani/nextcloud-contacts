@@ -671,8 +671,8 @@ const _default = {
 			// Validate: when the user wants to email the invite, email must be filled.
 			if (this.ocmInvite.sendEmail && !this.ocmInvite.email?.trim()) {
 				const message = this.ocmInvitesConfig.optionalMail
-					? t('contacts', 'Please enter an email address or uncheck "Send invite via email".')
-					: t('contacts', 'Please enter an email address.')
+					? this.t('contacts', 'Please enter an email address or uncheck "Send invite via email".')
+					: this.t('contacts', 'Please enter an email address.')
 				showError(message)
 				return
 			}
@@ -684,8 +684,8 @@ const _default = {
 				window.open(response.data.invite, '_self')
 			} catch (error) {
 				this.cancelNewInvite()
-				const message = error.response.data.message
-				showError(t('contacts', message))
+				const message = error?.response?.data?.message ?? 'Could not create invite'
+				showError(this.t('contacts', message))
 			}
 		},
 		cancelNewInvite() {
