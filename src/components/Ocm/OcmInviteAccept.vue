@@ -33,12 +33,10 @@ export default {
 	props: {
 		token: {
 			type: String,
-			default: '',
 			required: true,
 		},
 		provider: {
 			type: String,
-			default: '',
 			required: true,
 		},
 	}

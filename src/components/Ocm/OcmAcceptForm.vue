@@ -22,20 +22,20 @@
       />
 
       <div class="ocm_manual_buttons">
-        <Button @click="accept">
+        <NcButton @click="accept">
           <template #icon>
             <IconLoading v-if="loadingUpdate" :size="20" />
             <IconCheck v-else :size="20" />
           </template>
           {{ t("contacts", "Accept") }}
-        </Button>
-        <Button @click="cancel">
+        </NcButton>
+        <NcButton @click="cancel">
           <template #icon>
             <IconLoading v-if="loadingUpdate" :size="20" />
             <IconCancel v-else :size="20" />
           </template>
           {{ t("contacts", "Cancel") }}
-        </Button>
+        </NcButton>
       </div>
     </div>
   </div>
@@ -44,14 +44,25 @@
 <script>
 import NcTextField from "@nextcloud/vue/components/NcTextField";
 import NcButton from "@nextcloud/vue/components/NcButton";
+import NcLoadingIcon from "@nextcloud/vue/components/NcLoadingIcon";
+import IconCheck from "vue-material-design-icons/Check.vue";
+import IconCancel from "vue-material-design-icons/Cancel.vue";
 
 export default {
   name: "OcmAcceptForm",
-  components: { NcTextField, NcButton },
+  components: {
+    NcTextField,
+    NcButton,
+    IconLoading: NcLoadingIcon,
+    IconCheck,
+    IconCancel,
+  },
+  emits: ["accept", "cancel", "parse-error"],
   data() {
     return {
       invite: "",
       error: "",
+      loadingUpdate: false,
     };
   },
   methods: {
@@ -109,7 +120,7 @@ export default {
         const { provider, token } = this.parseInvite(this.invite);
         this.$emit("accept", { provider, token });
       } catch (e) {
-        this.error = t("contacts", "This invite does not look valid. Check that you copied it completely or ask the sender to generate a new one.");
+        this.error = this.t("contacts", "This invite does not look valid. Check that you copied it completely or ask the sender to generate a new one.");
         this.$emit("parse-error", { message: this.error });
       }
     },
