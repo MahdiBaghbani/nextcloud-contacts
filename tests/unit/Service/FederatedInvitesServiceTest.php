@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 namespace OCA\Contacts\Tests;
 
+use OCA\Contacts\AppInfo\Application;
 use OCA\Contacts\Db\FederatedInvite;
 use OCA\Contacts\Db\FederatedInviteMapper;
 use OCA\Contacts\Service\FederatedInvitesService;
@@ -126,10 +127,29 @@ class FederatedInvitesServiceTest extends TestCase {
 	}
 
 	public function testSetOcmInviteBoolSettingCoversEachAllowedKey(): void {
-		$this->appConfig->expects(self::exactly(count(FederatedInvitesService::OCM_INVITES_BOOL_KEYS)))
-			->method('setValueBool');
+		$keys = FederatedInvitesService::OCM_INVITES_BOOL_KEYS;
+		$this->assertNotEmpty(
+			$keys,
+			'OCM_INVITES_BOOL_KEYS must not be empty; otherwise the allowlist coverage is vacuous.',
+		);
 
-		foreach (FederatedInvitesService::OCM_INVITES_BOOL_KEYS as $key) {
+		$expectedCalls = [];
+		foreach ($keys as $key) {
+			$expectedCalls[] = [Application::APP_ID, $key, false];
+		}
+
+		$invocation = $this->exactly(count($keys));
+		$this->appConfig->expects($invocation)
+			->method('setValueBool')
+			->willReturnCallback(function (string $appId, string $configKey, bool $value) use (&$expectedCalls, $invocation): bool {
+				$index = $invocation->numberOfInvocations() - 1;
+				$this->assertSame($expectedCalls[$index][0], $appId);
+				$this->assertSame($expectedCalls[$index][1], $configKey);
+				$this->assertSame($expectedCalls[$index][2], $value);
+				return true;
+			});
+
+		foreach ($keys as $key) {
 			$this->assertTrue(
 				$this->federatedInvitesService->setOcmInviteBoolSetting($key, false),
 				"Allowed key '$key' should be writable",

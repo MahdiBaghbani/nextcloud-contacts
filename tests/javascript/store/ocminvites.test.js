@@ -65,7 +65,7 @@ describe('ocminvites store', () => {
 	})
 
 	describe('attachEmailAndSendOcmInvite', () => {
-		test('PATCHes the per-invite email endpoint with the trimmed payload', async () => {
+		test('PATCHes the per-invite email endpoint with the email and message payload', async () => {
 			axios.patch.mockResolvedValue({ data: flatInvitePayload() })
 
 			const { context } = makeStore()
@@ -154,6 +154,37 @@ describe('ocminvites store', () => {
 			expect(state.ocmInvites).toEqual({})
 			expect(errorSpy).toHaveBeenCalled()
 			errorSpy.mockRestore()
+		})
+	})
+
+	describe('deleteOcmInvite mutation', () => {
+		test('removes only the targeted invite from the sorted list', () => {
+			const a = new OcmInvite({ token: 'a' })
+			const b = new OcmInvite({ token: 'b' })
+			const { state, commit } = makeStore({
+				ocmInvites: { a, b },
+				sortedOcmInvites: [a, b],
+			})
+
+			commit('deleteOcmInvite', 'a')
+
+			expect(state.sortedOcmInvites.map(i => i.key)).toEqual(['b'])
+			expect(state.ocmInvites).not.toHaveProperty('a')
+			expect(state.ocmInvites).toHaveProperty('b')
+		})
+
+		test('does not splice the last entry when the key is unknown', () => {
+			const a = new OcmInvite({ token: 'a' })
+			const b = new OcmInvite({ token: 'b' })
+			const { state, commit } = makeStore({
+				ocmInvites: { a, b },
+				sortedOcmInvites: [a, b],
+			})
+
+			commit('deleteOcmInvite', 'missing-key')
+
+			expect(state.sortedOcmInvites.map(i => i.key)).toEqual(['a', 'b'])
+			expect(state.ocmInvites).toEqual({ a, b })
 		})
 	})
 })

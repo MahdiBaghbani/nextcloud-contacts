@@ -141,7 +141,9 @@ const mutations = {
 	 */
 	deleteOcmInvite(state, key) {
 		const index = state.sortedOcmInvites.findIndex(search => search.key === key)
-		state.sortedOcmInvites.splice(index, 1)
+		if (index !== -1) {
+			state.sortedOcmInvites.splice(index, 1)
+		}
 		delete state.ocmInvites[key]
 	},
 
