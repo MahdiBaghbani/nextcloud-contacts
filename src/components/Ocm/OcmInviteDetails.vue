@@ -38,6 +38,7 @@
 
 				<!-- Share buttons -->
 				<details v-if="invite.recipientEmail"
+					:key="inviteKey"
 					class="share-section share-section--collapsible"
 					data-testid="ocm-invite-share-section">
 					<summary class="share-section__summary">
@@ -361,9 +362,15 @@ export default {
 		align-items: center;
 		gap: 0.5em;
 		padding: 0.25em 0;
+		border-radius: var(--border-radius);
 
 		&::-webkit-details-marker {
 			display: none;
+		}
+
+		&:focus-visible {
+			outline: 2px solid var(--color-primary-element);
+			outline-offset: 2px;
 		}
 
 		&::after {
@@ -371,10 +378,17 @@ export default {
 			display: inline-block;
 			width: 0;
 			height: 0;
+			margin-inline-start: auto;
 			border-top: 5px solid transparent;
 			border-bottom: 5px solid transparent;
 			border-left: 6px solid currentColor;
 			transition: transform 0.15s ease-in-out;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.share-section__summary::after {
+			transition: none;
 		}
 	}
 
