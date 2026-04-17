@@ -37,9 +37,9 @@ use OCP\DB\Types;
 
 class FederatedInvite extends Entity {
 	protected bool $accepted = false;
-	protected ?int $acceptedAt = 0;
+	protected ?int $acceptedAt = null;
 	protected int $createdAt = 0;
-	protected ?int $expiredAt = 0;
+	protected ?int $expiredAt = null;
 	protected ?string $recipientEmail = null;
 	protected ?string $recipientName = null;
 	protected ?string $recipientProvider = null;
