@@ -102,9 +102,13 @@ export default {
 	watch: {
 		sendEmail: {
 			immediate: true,
-			handler(newVal) {
+			handler(newVal, oldVal) {
 				const patch = { sendEmail: newVal }
-				if (!newVal) {
+				// Clear pre-filled fields only when the user explicitly toggles the
+				// switch off (oldVal is defined). On the first immediate fire
+				// (oldVal === undefined) we must preserve any prefill the parent
+				// passed in via v-model:ocm-invite.
+				if (!newVal && oldVal !== undefined) {
 					patch.email = ''
 					patch.message = ''
 					this.ccSender = false
