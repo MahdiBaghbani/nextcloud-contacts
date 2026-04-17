@@ -34,10 +34,10 @@
 		</div>
 
 		<div class="actions">
-			<NcButton type="tertiary" :disabled="loading" data-testid="ocm-invite-attach-email-cancel-btn" @click="onCancel">
+			<NcButton variant="tertiary" :disabled="loading" data-testid="ocm-invite-attach-email-cancel-btn" @click="onCancel">
 				{{ t('contacts', 'Cancel') }}
 			</NcButton>
-			<NcButton type="primary" :disabled="!canSubmit" data-testid="ocm-invite-attach-email-submit-btn" @click="onSubmit">
+			<NcButton variant="primary" :disabled="!canSubmit" data-testid="ocm-invite-attach-email-submit-btn" @click="onSubmit">
 				<template #icon>
 					<EmailFastOutlineIcon :size="20" />
 				</template>

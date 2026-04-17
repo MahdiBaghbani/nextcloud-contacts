@@ -46,13 +46,13 @@
 					</summary>
 					<p class="share-hint">{{ t('contacts', 'Useful for chat apps and manual acceptance. The recipient already received the invite by email.') }}</p>
 					<div class="share-buttons">
-						<NcButton type="secondary" data-testid="ocm-invite-link-copy-btn" @click="copyToClipboard(wayfLink, 'Invite link')">
+						<NcButton variant="secondary" data-testid="ocm-invite-link-copy-btn" @click="copyToClipboard(wayfLink, 'Invite link')">
 							<template #icon>
 								<ContentCopyIcon :size="20" />
 							</template>
 							{{ t('contacts', 'Copy invite link') }}
 						</NcButton>
-						<NcButton type="secondary" data-testid="ocm-invite-token-copy-btn" @click="copyToClipboard(plainInviteString, 'Invite code')">
+						<NcButton variant="secondary" data-testid="ocm-invite-token-copy-btn" @click="copyToClipboard(plainInviteString, 'Invite code')">
 							<template #icon>
 								<ContentCopyIcon :size="20" />
 							</template>
@@ -70,13 +70,13 @@
 					<h3>{{ t('contacts', 'Share invite') }}</h3>
 					<p class="share-hint">{{ t('contacts', 'The invite link is the easiest way to share. Invite codes are for manual acceptance.') }}</p>
 					<div class="share-buttons">
-						<NcButton type="secondary" data-testid="ocm-invite-link-copy-btn" @click="copyToClipboard(wayfLink, 'Invite link')">
+						<NcButton variant="secondary" data-testid="ocm-invite-link-copy-btn" @click="copyToClipboard(wayfLink, 'Invite link')">
 							<template #icon>
 								<ContentCopyIcon :size="20" />
 							</template>
 							{{ t('contacts', 'Copy invite link') }}
 						</NcButton>
-						<NcButton type="secondary" data-testid="ocm-invite-token-copy-btn" @click="copyToClipboard(plainInviteString, 'Invite code')">
+						<NcButton variant="secondary" data-testid="ocm-invite-token-copy-btn" @click="copyToClipboard(plainInviteString, 'Invite code')">
 							<template #icon>
 								<ContentCopyIcon :size="20" />
 							</template>
@@ -94,7 +94,7 @@
 				<!-- Action buttons -->
 				<div class="action-buttons">
 					<NcButton v-if="invite.recipientEmail"
-						type="primary"
+						variant="primary"
 						data-testid="ocm-invite-resend-btn"
 						@click="onResend">
 						<template #icon>
@@ -103,7 +103,7 @@
 						{{ t('contacts', 'Resend email') }}
 					</NcButton>
 					<NcButton v-else
-						type="primary"
+						variant="primary"
 						data-testid="ocm-invite-attach-email-btn"
 						@click="openAttachEmailForm">
 						<template #icon>
@@ -111,7 +111,7 @@
 						</template>
 						{{ t('contacts', 'Send via email') }}
 					</NcButton>
-					<NcButton type="error"
+					<NcButton variant="error"
 						data-testid="ocm-invite-revoke-btn"
 						@click="onRevoke">
 						{{ t('contacts', 'Revoke invite') }}

@@ -29,7 +29,7 @@
 				</NcButton>
 				<!-- invite-contact-button -->
 				<NcButton v-if="isOcmInvitesEnabled && !loadingInvites"
-					type="secondary"
+					variant="secondary"
 					:wide="true"
 					:disabled="!defaultAddressbook"
 					@click="newInvite">
@@ -40,7 +40,7 @@
 				</NcButton>
 				<!-- accept-invite-button -->
 				<NcButton v-if="isOcmInvitesEnabled && !loadingInvites"
-					type="secondary"
+					variant="secondary"
 					:wide="true"
 					:disabled="!defaultAddressbook"
 					@click="manualInviteAccept">
