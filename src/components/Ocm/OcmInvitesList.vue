@@ -27,6 +27,7 @@
 import { NcAppContentList as AppContentList } from '@nextcloud/vue'
 import OcmInvitesListItem from './OcmInvitesListItem.vue'
 import { VList } from 'virtua/vue'
+import { getOcmInviteSearchData } from '../../models/ocminvite.ts'
 
 const _default = {
 	name: 'OcmInvitesList',
@@ -137,7 +138,7 @@ const _default = {
 		 */
 		matchSearch(invite) {
 			if (this.query.trim() !== '') {
-				return invite.searchData.toString().toLowerCase().search(this.query.trim().toLowerCase()) !== -1
+				return getOcmInviteSearchData(invite).toLowerCase().search(this.query.trim().toLowerCase()) !== -1
 			}
 			return true
 		},

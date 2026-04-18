@@ -7,7 +7,7 @@
 		<ListItem :id="id"
 			:key="source.key"
 			class="list-item-style envelope"
-			:name="source.displayName"
+			:name="displayName"
 			:to="{ name: ROUTE_NAME_OCM_INVITE, params: { selectedInvite: source.key } }"
 			:data-testid="`ocm-invite-item-${source.token}`">
 		</ListItem>
@@ -20,6 +20,7 @@ import {
 } from '@nextcloud/vue'
 
 import { ROUTE_NAME_OCM_INVITE } from '../../models/constants'
+import { getOcmInviteDisplayName } from '../../models/ocminvite.ts'
 
 export default {
 	name: 'OcmInvitesListItem',
@@ -53,6 +54,9 @@ export default {
 		id() {
 			// Token is UUID format, use with prefix for valid HTML ID
 			return `invite-${this.source.key}`
+		},
+		displayName() {
+			return getOcmInviteDisplayName(this.source)
 		},
 	},
 	methods: {

@@ -25,8 +25,8 @@ jest.mock('@nextcloud/router', () => ({
 }))
 
 import axios from '@nextcloud/axios'
-import ocmInvites from '../../../src/store/ocminvites.js'
-import OcmInvite from '../../../src/models/ocminvite.ts'
+import ocmInvites from '../../../src/store/ocminvites.ts'
+import { toOcmInviteEntry } from '../../../src/models/ocminvite.ts'
 
 const TOKEN = 'token-1234'
 
@@ -94,7 +94,7 @@ describe('ocminvites store', () => {
 			expect(payload).toEqual({ email: '', message: '' })
 		})
 
-		test('stores a fresh OcmInvite from a flat backend response', async () => {
+		test('stores a fresh invite entry from a flat backend response', async () => {
 			axios.patch.mockResolvedValue({ data: flatInvitePayload() })
 
 			const { state, context } = makeStore()
@@ -106,7 +106,8 @@ describe('ocminvites store', () => {
 
 			expect(response.data.token).toBe(TOKEN)
 			const stored = state.ocmInvites[TOKEN]
-			expect(stored).toBeInstanceOf(OcmInvite)
+			expect(stored.key).toBe(TOKEN)
+			expect(stored.token).toBe(TOKEN)
 			expect(stored.recipientEmail).toBe('recipient@example.org')
 			expect(state.sortedOcmInvites).toHaveLength(1)
 			expect(state.sortedOcmInvites[0].key).toBe(TOKEN)
@@ -134,7 +135,7 @@ describe('ocminvites store', () => {
 		test('replaces the invite for the matching token without dropping others', () => {
 			const { state, commit } = makeStore({
 				ocmInvites: {
-					'other-token': new OcmInvite({ token: 'other-token', recipientEmail: 'other@example.org' }),
+					'other-token': toOcmInviteEntry({ token: 'other-token', recipientEmail: 'other@example.org' }),
 				},
 			})
 
@@ -159,8 +160,8 @@ describe('ocminvites store', () => {
 
 	describe('deleteOcmInvite mutation', () => {
 		test('removes only the targeted invite from the sorted list', () => {
-			const a = new OcmInvite({ token: 'a' })
-			const b = new OcmInvite({ token: 'b' })
+			const a = toOcmInviteEntry({ token: 'a' })
+			const b = toOcmInviteEntry({ token: 'b' })
 			const { state, commit } = makeStore({
 				ocmInvites: { a, b },
 				sortedOcmInvites: [a, b],
@@ -174,8 +175,8 @@ describe('ocminvites store', () => {
 		})
 
 		test('does not splice the last entry when the key is unknown', () => {
-			const a = new OcmInvite({ token: 'a' })
-			const b = new OcmInvite({ token: 'b' })
+			const a = toOcmInviteEntry({ token: 'a' })
+			const b = toOcmInviteEntry({ token: 'b' })
 			const { state, commit } = makeStore({
 				ocmInvites: { a, b },
 				sortedOcmInvites: [a, b],
