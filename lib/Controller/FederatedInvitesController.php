@@ -53,6 +53,7 @@ use OCP\OCM\IOCMProvider;
 use OCP\Util;
 use Psr\Log\LoggerInterface;
 use Sabre\DAV\UUIDUtil;
+use Throwable;
 
 /**
  * Controller for federated invites related routes.
@@ -181,9 +182,14 @@ class FederatedInvitesController extends PageController {
 			return new JSONResponse(['message' => $this->il10->t('Email address is required.')], Http::STATUS_BAD_REQUEST);
 		}
 
-		// check for existing open invite for the specified email, only if email provided
 		$uid = $this->userSession->getUser()->getUID();
 		if (!empty($email)) {
+			$validationError = $this->validateEmail($email);
+			if ($validationError !== null) {
+				return $validationError;
+			}
+
+			// check for existing open invite for the specified email, only if email provided
 			$existingInvites = $this->federatedInviteMapper->findOpenInvitesByRecipientEmail(
 				$uid,
 				$email,
@@ -211,7 +217,10 @@ class FederatedInvitesController extends PageController {
 		$invite->setAccepted(false);
 		try {
 			$this->federatedInviteMapper->insert($invite);
-		} catch (Exception $e) {
+		} catch (Throwable $e) {
+			if ($this->isDuplicateConstraintException($e)) {
+				return new JSONResponse(['message' => $this->il10->t('An open invite already exists.')], Http::STATUS_CONFLICT);
+			}
 			$this->logger->error('An unexpected error occurred saving a new invite. Stacktrace: ' . $e->getTraceAsString(), ['app' => Application::APP_ID]);
 			return new JSONResponse(['message' => 'An unexpected error occurred creating the invite.'], Http::STATUS_INTERNAL_SERVER_ERROR);
 		}
@@ -267,6 +276,13 @@ class FederatedInvitesController extends PageController {
 			return new JSONResponse(['message' => 'Both token and provider must be specified.'], Http::STATUS_BAD_REQUEST);
 		}
 		$localUser = $this->userSession->getUser();
+		if ($localUser === null) {
+			return new JSONResponse(['message' => $this->il10->t('Could not accept invite because no authenticated user was found.')], Http::STATUS_UNAUTHORIZED);
+		}
+		$provider = $this->normalizeProviderBase($provider);
+		if ($provider === null) {
+			return new JSONResponse(['message' => $this->il10->t('The invite provider is invalid or not allowed.')], Http::STATUS_BAD_REQUEST);
+		}
 		$recipientProvider = $this->federatedInvitesService->getProviderFQDN();
 		$userId = $localUser->getUID();
 		$email = $localUser->getEMailAddress();
@@ -275,6 +291,7 @@ class FederatedInvitesController extends PageController {
 			$this->logger->error("All of these must be set: recipientProvider: $recipientProvider, email: $email, userId: $userId, name: $name", ['app' => Application::APP_ID]);
 			return new JSONResponse(['message' => 'Could not accept invite, user data is incomplete.'], Http::STATUS_UNPROCESSABLE_ENTITY);
 		}
+		$cloudId = '';
 		try {
 			// accept the invite by calling provider OCM /invite-accepted
 			// this returns a response with the following data signature: ['userID', 'email', 'name']
@@ -309,6 +326,23 @@ class FederatedInvitesController extends PageController {
 				);
 				$responseData = $response->getBody();
 				$data = json_decode($responseData, true);
+				if (
+					!is_array($data)
+					|| !isset($data['userID'], $data['email'], $data['name'])
+					|| !is_string($data['userID'])
+					|| !is_string($data['email'])
+					|| !is_string($data['name'])
+					|| trim($data['userID']) === ''
+					|| trim($data['email']) === ''
+					|| trim($data['name']) === ''
+				) {
+					$this->logger->warning('Invalid /invite-accepted payload from provider', [
+						'app' => Application::APP_ID,
+						'provider' => $provider,
+						'payload' => $responseData,
+					]);
+					return new JSONResponse(['message' => $this->il10->t('Could not accept invite because the remote provider returned an invalid response.')], Http::STATUS_BAD_GATEWAY);
+				}
 
 				$cloudId = $data['userID'] . '@' . $this->addressHandler->removeProtocolFromUrl($provider);
 
@@ -319,7 +353,17 @@ class FederatedInvitesController extends PageController {
 					null
 				);
 				if (!isset($contactRef)) {
-					return new JSONResponse(['message' => 'An unexpected error occurred trying to accept invite.'], Http::STATUS_INTERNAL_SERVER_ERROR);
+					$this->logger->error('Remote invite acceptance succeeded but local contact creation failed', [
+						'app' => Application::APP_ID,
+						'token' => $token,
+						'provider' => $provider,
+						'cloudId' => $cloudId,
+						'userId' => $userId,
+					]);
+					return new JSONResponse([
+						'code' => 'ocm_invite_local_contact_create_failed',
+						'message' => $this->il10->t('The remote provider accepted the invite, but this server could not create the local contact.'),
+					], Http::STATUS_BAD_GATEWAY);
 				}
 				$key = base64_encode($contactRef);
 				$contactUrl = $this->urlGenerator->getAbsoluteURL(
@@ -338,12 +382,14 @@ class FederatedInvitesController extends PageController {
 			 * 400: Invalid or non existing token
 			 * 409: Invite already accepted
 			 */
-			$statusCode = $e->getCode();
+			$statusCode = $e->getResponse() !== null
+				? $e->getResponse()->getStatusCode()
+				: null;
 			switch ($statusCode) {
 				case Http::STATUS_BAD_REQUEST:
-					return new JSONResponse(['message' => 'Invalid, non existing or expired token'], $e->getCode());
+					return new JSONResponse(['message' => 'Invalid, non existing or expired token'], Http::STATUS_BAD_REQUEST);
 				case Http::STATUS_CONFLICT:
-					return new JSONResponse(['message' => 'Invite already accepted'], $e->getCode());
+					return new JSONResponse(['message' => 'Invite already accepted'], Http::STATUS_CONFLICT);
 			}
 			$this->logger->error("An unexpected error occurred accepting invite with token=$token and provider=$provider. Stacktrace: " . $e->getTraceAsString(), ['app' => Application::APP_ID]);
 			return new JSONResponse(['message' => 'An unexpected error occurred trying to accept invite.'], Http::STATUS_INTERNAL_SERVER_ERROR);
@@ -354,7 +400,7 @@ class FederatedInvitesController extends PageController {
 	}
 
 	/**
-	 * Resets the creation and expiration dates, and sends a new invite to the recipient.
+	 * Re-sends an existing invite email while preserving invite lifetime metadata.
 	 *
 	 *
 	 */
@@ -380,9 +426,6 @@ class FederatedInvitesController extends PageController {
 		}
 
 		$sendDate = date('Y-m-d', $invite->getCreatedAt());
-		$invite->setCreatedAt($this->timeFactory->now()->getTimestamp());
-		$invite->setExpiredAt($this->federatedInvitesService->getInviteExpirationDate($invite->getCreatedAt()));
-		$this->federatedInviteMapper->update($invite);
 		$initiatorDisplayName = $this->userSession->getUser()->getDisplayName();
 		// a resend notification that refers to the previously sent invite
 		$message = $this->il10->t(
@@ -531,44 +574,46 @@ class FederatedInvitesController extends PageController {
 	 * @return DataResponse
 	 */
 	#[PublicPage]
+	#[UserRateLimit(limit: 120, period: 3600)]
+	#[BruteForceProtection(action: 'ocmInviteDiscover')]
 	#[FrontpageRoute(verb: 'GET', url: '/discover')]
 	public function discover(string $base): DataResponse {
-		$base = trim($base);
-		if ($base === '') {
-			return new DataResponse(['error' => 'empty base'], 400);
+		$base = $this->normalizeProviderBase($base);
+		if ($base === null) {
+			return new DataResponse(['error' => 'invalid base'], Http::STATUS_BAD_REQUEST);
 		}
-		if (!preg_match('#^https?://#i', $base)) {
-			$base = 'https://' . $base;
-		}
-		$base = rtrim($base, '/');
 
-		/**
-		 * @var OCP\OCM\ICapabilityAwareOCMProvider $provider
-		 *
-		 */
-		$provider = $this->discovery->discover($base);
-		$dialog = $provider->getInviteAcceptDialog();
-		if (!empty($dialog)) {
-			$absolute = preg_match('#^https?://#i', $dialog) ? $dialog : $base . $dialog;
+		try {
+			/**
+			 * @var OCP\OCM\ICapabilityAwareOCMProvider $provider
+			 *
+			 */
+			$provider = $this->discovery->discover($base);
+			$dialog = trim((string)$provider->getInviteAcceptDialog());
+			$absolute = $dialog === '' ? null : $this->buildInviteAcceptDialogAbsolute($base, $dialog);
+			if ($absolute === null) {
+				$dialog = $this->wayfProvider->getInviteAcceptDialogPath();
+				$absolute = $this->buildInviteAcceptDialogAbsolute($base, $dialog);
+			}
+			if ($absolute === null) {
+				return new DataResponse(['error' => 'OCM discovery failed', 'base' => $base], Http::STATUS_NOT_FOUND);
+			}
+
+			$baseHost = parse_url($base, PHP_URL_HOST);
 			return new DataResponse([
 				'base' => $base,
 				'inviteAcceptDialog' => $dialog,
 				'inviteAcceptDialogAbsolute' => $absolute,
-				'raw' => $provider->jsonSerialize(),
-			]);
-		} elseif (empty($dialog)) {
-			// We can not check and see, because we have to be logged in here
-			// so we will just risk it.
-			$dialog = $base . $this->wayfProvider->getInviteAcceptDialogPath();
-			$absolute = preg_match('#^https?://#i', $dialog) ? $dialog : $base . $dialog;
-			return new DataResponse([
+				'providerDomain' => is_string($baseHost) ? $baseHost : '',
+			], Http::STATUS_OK);
+		} catch (Throwable $e) {
+			$this->logger->warning('OCM discovery failed', [
+				'app' => Application::APP_ID,
 				'base' => $base,
-				'inviteAcceptDialog' => $dialog,
-				'inviteAcceptDialogAbsolute' => $absolute,
-				'raw' => $provider->jsonSerialize(),
+				'exception' => $e,
 			]);
+			return new DataResponse(['error' => 'OCM discovery failed', 'base' => $base], Http::STATUS_NOT_FOUND);
 		}
-		return new DataResponse(['error' => 'OCM discovery failed', 'base' => $base], 404);
 	}
 
 	/**
@@ -625,7 +670,10 @@ class FederatedInvitesController extends PageController {
 			$email->setSubject($subject);
 
 			$wayfEndpoint = $this->wayfProvider->getWayfEndpoint();
-			$inviteLink = "$wayfEndpoint?token=$token";
+			if ($wayfEndpoint === null || trim($wayfEndpoint) === '') {
+				return;
+			}
+			$inviteLink = $this->buildWayfInviteLink($wayfEndpoint, $token, $senderProvider);
 			$encoded = base64_encode("$token@$senderProvider");
 
 			$recipientH = htmlspecialchars($recipientAddress, ENT_QUOTES, 'UTF-8');
@@ -681,7 +729,7 @@ class FederatedInvitesController extends PageController {
 	private function validateEmail(string $address): ?JSONResponse {
 		if (!$this->mailer->validateMailAddress($address)) {
 			$this->logger->debug("Invalid recipient email address '$address'", ['app' => Application::APP_ID]);
-			return new JSONResponse(['message' => 'Recipient email address is invalid'], Http::STATUS_UNPROCESSABLE_ENTITY);
+			return new JSONResponse(['message' => $this->il10->t('Recipient email address is invalid.')], Http::STATUS_UNPROCESSABLE_ENTITY);
 		}
 		return null;
 	}
@@ -720,7 +768,7 @@ class FederatedInvitesController extends PageController {
 			$this->logger->error('Invalid WAYF endpoint (null).', ['app' => Application::APP_ID]);
 			return new JSONResponse(['message' => 'Could not send invite.'], Http::STATUS_INTERNAL_SERVER_ERROR);
 		}
-		$inviteLink = "$wayfEndpoint?token=$token";
+		$inviteLink = $this->buildWayfInviteLink($wayfEndpoint, $token, $senderProvider);
 		$encoded = base64_encode("$token@$senderProvider");
 
 		$initiatorDisplayNameH = htmlspecialchars($initiatorDisplayName, ENT_QUOTES, 'UTF-8');
@@ -763,5 +811,122 @@ class FederatedInvitesController extends PageController {
 		}
 
 		return new JSONResponse([], Http::STATUS_OK);
+	}
+
+	private function normalizeProviderBase(string $provider): ?string {
+		$candidate = trim($provider);
+		if ($candidate === '') {
+			return null;
+		}
+		if (!preg_match('#^https?://#i', $candidate)) {
+			$candidate = 'https://' . $candidate;
+		}
+
+		$parts = parse_url($candidate);
+		if (!is_array($parts) || !isset($parts['scheme'], $parts['host'])) {
+			return null;
+		}
+
+		$scheme = strtolower((string)$parts['scheme']);
+		if (!in_array($scheme, ['http', 'https'], true)) {
+			return null;
+		}
+
+		$host = strtolower((string)$parts['host']);
+		if ($host === '' || $this->isBlockedDiscoveryHost($host)) {
+			return null;
+		}
+
+		$port = '';
+		if (isset($parts['port'])) {
+			$portNumber = (int)$parts['port'];
+			if ($portNumber < 1 || $portNumber > 65535) {
+				return null;
+			}
+			$port = ':' . $portNumber;
+		}
+
+		$path = '';
+		if (isset($parts['path']) && is_string($parts['path']) && $parts['path'] !== '') {
+			$path = '/' . trim($parts['path'], '/');
+			$path = rtrim($path, '/');
+		}
+
+		return $scheme . '://' . $host . $port . $path;
+	}
+
+	private function isBlockedDiscoveryHost(string $host): bool {
+		$normalizedHost = strtolower(trim($host));
+		if ($normalizedHost === 'localhost' || str_ends_with($normalizedHost, '.localhost')) {
+			return true;
+		}
+
+		if (filter_var($normalizedHost, FILTER_VALIDATE_IP) === false) {
+			return false;
+		}
+
+		return filter_var(
+			$normalizedHost,
+			FILTER_VALIDATE_IP,
+			FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE,
+		) === false;
+	}
+
+	private function buildInviteAcceptDialogAbsolute(string $base, string $dialog): ?string {
+		$trimmedDialog = trim($dialog);
+		if ($trimmedDialog === '') {
+			return null;
+		}
+
+		$baseParts = parse_url($base);
+		if (!is_array($baseParts) || !isset($baseParts['scheme'], $baseParts['host'])) {
+			return null;
+		}
+
+		if (preg_match('#^https?://#i', $trimmedDialog)) {
+			$dialogUrl = $this->normalizeProviderBase($trimmedDialog);
+			if ($dialogUrl === null) {
+				return null;
+			}
+			$dialogParts = parse_url($dialogUrl);
+			if (!is_array($dialogParts) || !isset($dialogParts['host'])) {
+				return null;
+			}
+
+			$basePort = $baseParts['port'] ?? null;
+			$dialogPort = $dialogParts['port'] ?? null;
+			if (strtolower((string)$dialogParts['host']) !== strtolower((string)$baseParts['host']) || $basePort !== $dialogPort) {
+				return null;
+			}
+
+			return $dialogUrl;
+		}
+
+		$origin = $baseParts['scheme'] . '://' . $baseParts['host'];
+		if (isset($baseParts['port'])) {
+			$origin .= ':' . $baseParts['port'];
+		}
+
+		if (str_starts_with($trimmedDialog, '/')) {
+			return $origin . $trimmedDialog;
+		}
+
+		return rtrim($base, '/') . '/' . ltrim($trimmedDialog, '/');
+	}
+
+	private function buildWayfInviteLink(string $wayfEndpoint, string $token, string $senderProvider): string {
+		$separator = str_contains($wayfEndpoint, '?') ? '&' : '?';
+		$query = http_build_query([
+			'token' => $token,
+			'providerDomain' => $senderProvider,
+		], '', '&', PHP_QUERY_RFC3986);
+		return $wayfEndpoint . $separator . $query;
+	}
+
+	private function isDuplicateConstraintException(Throwable $e): bool {
+		$message = strtolower($e->getMessage());
+		return str_contains($message, 'duplicate')
+			|| str_contains($message, 'unique')
+			|| str_contains($message, 'constraint');
 	}
 }

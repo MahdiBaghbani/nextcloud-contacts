@@ -126,6 +126,7 @@ class Version8005Date20260418120000 extends SimpleMigrationStep {
 				'Failed to create partial unique index for federated_invites: {message}',
 				['app' => 'contacts', 'message' => $e->getMessage(), 'exception' => $e],
 			);
+			throw new \RuntimeException('Could not create required open-invite uniqueness index.', 0, $e);
 		}
 	}
 

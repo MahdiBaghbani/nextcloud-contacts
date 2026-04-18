@@ -41,12 +41,19 @@ class FederatedInviteMapper extends QBMapper {
 	 *
 	 * @return list<FederatedInvite>
 	 */
-	public function findOpenInvitesByUid(string $userId):array {
+	public function findOpenInvitesByUid(string $userId, ?int $now = null): array {
+		$timestamp = $now ?? time();
 		$qb = $this->db->getQueryBuilder();
 		$qb->select('*')
 			->from(self::TABLE_NAME)
 			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-			->andWhere($qb->expr()->eq('accepted', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)));
+			->andWhere($qb->expr()->eq('accepted', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)))
+			->andWhere(
+				$qb->expr()->orX(
+					$qb->expr()->isNull('expired_at'),
+					$qb->expr()->gt('expired_at', $qb->createNamedParameter($timestamp, IQueryBuilder::PARAM_INT)),
+				),
+			);
 		return $this->findEntities($qb);
 	}
 
@@ -55,13 +62,20 @@ class FederatedInviteMapper extends QBMapper {
 	 *
 	 * @return list<FederatedInvite>
 	 */
-	public function findOpenInvitesByRecipientEmail(string $userId, string $email):array {
+	public function findOpenInvitesByRecipientEmail(string $userId, string $email, ?int $now = null): array {
+		$timestamp = $now ?? time();
 		$qb = $this->db->getQueryBuilder();
 		$qb->select('*')
 			->from(self::TABLE_NAME)
 			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
 			->andWhere($qb->expr()->eq('recipient_email', $qb->createNamedParameter($email)))
-			->andWhere($qb->expr()->eq('accepted', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)));
+			->andWhere($qb->expr()->eq('accepted', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)))
+			->andWhere(
+				$qb->expr()->orX(
+					$qb->expr()->isNull('expired_at'),
+					$qb->expr()->gt('expired_at', $qb->createNamedParameter($timestamp, IQueryBuilder::PARAM_INT)),
+				),
+			);
 		return $this->findEntities($qb);
 	}
 

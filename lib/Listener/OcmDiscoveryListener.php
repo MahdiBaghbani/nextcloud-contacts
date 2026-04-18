@@ -9,11 +9,14 @@ declare(strict_types=1);
 namespace OCA\Contacts\Listener;
 
 use OC\Core\AppInfo\ConfigLexicon;
+use OCA\Contacts\AppInfo\Application;
+use OCA\Contacts\ConfigLexicon as ContactsConfigLexicon;
 use OCP\EventDispatcher\Event;
 use OCP\EventDispatcher\IEventListener;
 use OCP\IAppConfig;
 use OCP\IURLGenerator;
 use OCP\OCM\Events\LocalOCMDiscoveryEvent;
+use Throwable;
 
 /** @template-implements IEventListener<LocalOCMDiscoveryEvent> */
 class OcmDiscoveryListener implements IEventListener {
@@ -32,12 +35,26 @@ class OcmDiscoveryListener implements IEventListener {
 	 * @return void
 	 */
 	public function handle(Event $event): void {
-		if ($event instanceof LocalOCMDiscoveryEvent) {
-			$event->addCapability('invite-accepted');
-			$inviteAcceptDialog = $this->appConfig->getValueString('core', ConfigLexicon::OCM_INVITE_ACCEPT_DIALOG);
-			if ($inviteAcceptDialog !== '') {
-				$event->getProvider()->setInviteAcceptDialog($this->urlGenerator->linkToRouteAbsolute($inviteAcceptDialog));
-			}
+		if (!($event instanceof LocalOCMDiscoveryEvent)) {
+			return;
 		}
+
+		if (!$this->appConfig->getValueBool(Application::APP_ID, ContactsConfigLexicon::OCM_INVITES_ENABLED)) {
+			return;
+		}
+
+		$inviteAcceptDialog = trim($this->appConfig->getValueString('core', ConfigLexicon::OCM_INVITE_ACCEPT_DIALOG));
+		if ($inviteAcceptDialog === '') {
+			return;
+		}
+
+		try {
+			$absoluteDialogUrl = $this->urlGenerator->linkToRouteAbsolute($inviteAcceptDialog);
+		} catch (Throwable) {
+			return;
+		}
+
+		$event->addCapability('invite-accepted');
+		$event->getProvider()->setInviteAcceptDialog($absoluteDialogUrl);
 	}
 }

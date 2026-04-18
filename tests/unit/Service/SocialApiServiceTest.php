@@ -330,6 +330,62 @@ class SocialApiServiceTest extends TestCase {
 		$this->assertEquals(Http::STATUS_OK, $result->getStatus());
 	}
 
+	public function testUpdateContactAcceptsContentTypeWithParameters() {
+		$network = 'mastodon';
+		$body = 'the body';
+		$imageType = 'image/jpeg; charset=utf-8';
+		$addressBookId = 'contacts';
+		$contactId = '3225c0d5-1bd2-43e5-a08c-4e65eaa406b0';
+		$contact = [
+			'URI' => $contactId,
+			'VERSION' => '4.0'
+		];
+		$provider = $this->createMock(ISocialProvider::class);
+		$provider->method('supportsContact')->willReturn(true);
+		$provider->method('getImageUrls')->willReturn(['https://url1.com/an-url']);
+
+		$addressbook = $this->createMock(IAddressBook::class);
+		$addressbook->method('getUri')->willReturn('contacts');
+		$addressbook->method('search')->willReturn([$contact]);
+
+		$this->manager->method('getUserAddressBooks')->willReturn([$addressbook]);
+		$this->socialProvider->method('getSocialConnectors')->willReturn([$provider]);
+		$this->socialProvider->method('getSocialConnector')->willReturn($provider);
+
+		$response = $this->createMock(IResponse::class);
+		$response->method('getBody')->willReturn($body);
+		$response->method('getHeader')->willReturn($imageType);
+		$client = $this->createMock(IClient::class);
+		$client->method('get')->willReturn($response);
+		$this->clientService->method('newClient')->willReturn($client);
+		$this->imageResizer->expects($this->once())->method('resizeImage')->willReturn($body);
+		$addressbook->expects($this->once())->method('createOrUpdate');
+
+		$result = $this->service->updateContact($addressBookId, $contactId, $network);
+
+		$this->assertEquals(Http::STATUS_OK, $result->getStatus());
+	}
+
+	public function testUpdateContactWithUnknownNetworkReturnsBadRequest() {
+		$addressBookId = 'contacts';
+		$contactId = '3225c0d5-1bd2-43e5-a08c-4e65eaa406b0';
+		$contact = [
+			'URI' => $contactId,
+			'VERSION' => '4.0'
+		];
+		$addressbook = $this->createMock(IAddressBook::class);
+		$addressbook->method('getUri')->willReturn('contacts');
+		$addressbook->method('search')->willReturn([$contact]);
+
+		$this->manager->method('getUserAddressBooks')->willReturn([$addressbook]);
+		$this->socialProvider->method('getSocialConnectors')->willReturn([]);
+		$this->socialProvider->expects($this->once())->method('getSocialConnector')->with('unknown')->willReturn(null);
+
+		$result = $this->service->updateContact($addressBookId, $contactId, 'unknown');
+
+		$this->assertEquals(Http::STATUS_BAD_REQUEST, $result->getStatus());
+	}
+
 	public function testUpdateContactWithUnallowedMimeVersion4() {
 		$network = 'mastodon';
 		$body = 'the body';

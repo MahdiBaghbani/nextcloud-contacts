@@ -98,8 +98,11 @@ class FederatedInvitesService {
 	 */
 	public function getProviderFQDN(): string {
 		$serverUrl = $this->urlGenerator->getAbsoluteURL('/');
-		$fqdn = parse_url($serverUrl)['host'];
-		return $fqdn;
+		$parts = parse_url($serverUrl);
+		if (!is_array($parts) || !isset($parts['host']) || !is_string($parts['host'])) {
+			return '';
+		}
+		return $parts['host'];
 	}
 
 	/**
@@ -167,7 +170,30 @@ class FederatedInvitesService {
 		$sharedFromDisplayName = $localUser->getDisplayName();
 
 		$response = ['userID' => $localUser->getUID(), 'email' => $sharedFromEmail, 'name' => $sharedFromDisplayName];
-		$status = Http::STATUS_OK;
+
+		// Create the local contact first, then mark the invitation accepted.
+		// This avoids reporting success while the inviter-side contact is missing.
+		$cloudId = $userID . '@' . $this->addressHandler->removeProtocolFromUrl($recipientProvider);
+		try {
+			$contactRef = $this->createNewContact(
+				$cloudId,
+				$email,
+				$name,
+				$localUser->getUID()
+			);
+			if ($contactRef === null) {
+				return new JSONResponse([
+					'message' => 'Could not create local contact after invite acceptance',
+					'error' => true,
+				], Http::STATUS_INTERNAL_SERVER_ERROR);
+			}
+		} catch (ContactExistsException) {
+			$this->logger->warning('Contact with cloud id {cloudId} already exists for user {userId}.', [
+				'app' => Application::APP_ID,
+				'cloudId' => $cloudId,
+				'userId' => $localUser->getUID(),
+			]);
+		}
 
 		$invitation->setAccepted(true);
 		$invitation->setRecipientEmail($email);
@@ -175,27 +201,21 @@ class FederatedInvitesService {
 		$invitation->setRecipientProvider($recipientProvider);
 		$invitation->setRecipientUserId($userID);
 		$invitation->setAcceptedAt($updated);
-		$invitation = $this->federatedInviteMapper->update($invitation);
-
-		// now create contact based on the supplied parameters (by the receiver of the invite)
 		try {
-			// the ocm address: nextcloud cloud id format
-			$cloudId = $invitation->getRecipientUserId() . '@' . $this->addressHandler->removeProtocolFromUrl($invitation->getRecipientProvider());
-			$contactRef = $this->createNewContact(
-				$cloudId,
-				$email,
-				$name,
-				$localUser->getUID()
-			);
-		} catch (ContactExistsException $e) {
-			// this is not an OCM exception
-			$this->logger->warning('Contact with cloud id {cloudId} already exists for user {userId}.', [
+			$this->federatedInviteMapper->update($invitation);
+		} catch (Exception $e) {
+			$this->logger->error('Could not persist accepted invitation', [
 				'app' => Application::APP_ID,
-				'cloudId' => $cloudId,
-				'userId' => $localUser->getUID(),
+				'exception' => $e,
+				'token' => $token,
 			]);
+			return new JSONResponse([
+				'message' => 'Could not store invitation acceptance',
+				'error' => true,
+			], Http::STATUS_INTERNAL_SERVER_ERROR);
 		}
-		return new JSONResponse($response, $status);
+
+		return new JSONResponse($response, Http::STATUS_OK);
 	}
 
 	/**

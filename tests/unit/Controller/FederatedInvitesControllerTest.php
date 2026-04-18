@@ -399,6 +399,60 @@ class FederatedInvitesControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
 	}
 
+	public function testResendInvitePreservesLifetimeOnSuccessfulSend(): void {
+		$invite = $this->makeInvite('recipient@example.org');
+		$createdAt = $invite->getCreatedAt();
+		$expiredAt = $invite->getExpiredAt();
+
+		$this->mapper->method('findInviteByTokenAndUid')->willReturn($invite);
+		$this->mailer->method('validateMailAddress')->willReturn(true);
+		$this->mailer->method('createMessage')->willReturn($this->createMock(\OCP\Mail\IMessage::class));
+		$this->mailer->method('send')->willReturn([]);
+		$this->wayfProvider->method('getWayfEndpoint')->willReturn('https://example.org/wayf');
+		$this->invitesService->method('getProviderFQDN')->willReturn('example.org');
+
+		$this->mapper->expects($this->never())->method('update');
+
+		$response = $this->controller->resendInvite(self::TOKEN);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame($createdAt, $invite->getCreatedAt());
+		$this->assertSame($expiredAt, $invite->getExpiredAt());
+	}
+
+	public function testDiscoverRejectsBlockedTargets(): void {
+		$response = $this->controller->discover('localhost');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('invalid base', $response->getData()['error']);
+	}
+
+	public function testDiscoverUsesFallbackDialogAndOmitsRawPayload(): void {
+		$provider = $this->createMock(\OCP\OCM\ICapabilityAwareOCMProvider::class);
+		$provider->method('getInviteAcceptDialog')->willReturn('');
+
+		$this->discovery->expects($this->once())
+			->method('discover')
+			->with('https://remote.example')
+			->willReturn($provider);
+		$this->wayfProvider->method('getInviteAcceptDialogPath')->willReturn('/index.php/apps/contacts/ocm/invite-accept-dialog');
+
+		$response = $this->controller->discover('remote.example');
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$body = $response->getData();
+		$this->assertSame('https://remote.example', $body['base']);
+		$this->assertSame('remote.example', $body['providerDomain']);
+		$this->assertSame('https://remote.example/index.php/apps/contacts/ocm/invite-accept-dialog', $body['inviteAcceptDialogAbsolute']);
+		$this->assertArrayNotHasKey('raw', $body);
+	}
+
+	public function testAcceptInviteRejectsInvalidProviderTarget(): void {
+		$response = $this->controller->acceptInvite(self::TOKEN, '127.0.0.1');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
 	public function testSetOcmInviteBoolSettingReturnsOkOnAllowedKey(): void {
 		$this->invitesService->expects($this->once())
 			->method('setOcmInviteBoolSetting')

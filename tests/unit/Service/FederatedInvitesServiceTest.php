@@ -84,6 +84,20 @@ class FederatedInvitesServiceTest extends TestCase {
 			->method('update')
 			->willReturnArgument(0);
 
+		$recipientProvider = 'http://127.0.0.1';
+		$recipientId = 'remote';
+		$recipientEmail = 'remote@example.org';
+		$recipientName = 'Remote Remoteson';
+
+		$this->addressHandler->expects(self::once())
+			->method('removeProtocolFromUrl')
+			->with($recipientProvider)
+			->willReturn('127.0.0.1');
+		$this->socialApiService->expects(self::once())
+			->method('createContact')
+			->with('remote@127.0.0.1', $recipientEmail, $recipientName, $userId)
+			->willReturn(['UID' => 'contact-uid']);
+
 		$user = $this->createMock(IUser::class);
 		$user->method('getUID')
 			->willReturn($userId);
@@ -97,14 +111,54 @@ class FederatedInvitesServiceTest extends TestCase {
 			->with($userId)
 			->willReturn($user);
 
-		$recipientProvider = 'http://127.0.0.1';
-		$recipientId = 'remote';
-		$recipientEmail = 'remote@example.org';
-		$recipientName = 'Remote Remoteson';
 		$response = ['userID' => $userId, 'email' => 'email', 'name' => 'displayName'];
 		$json = new JSONResponse($response, Http::STATUS_OK);
 
 		$this->assertEquals($json, $this->federatedInvitesService->inviteAccepted($recipientProvider, $token, $recipientId, $recipientEmail, $recipientName));
+	}
+
+	public function testInviteAcceptedFailsWhenContactCreationFails(): void {
+		$token = 'token';
+		$userId = 'userId';
+		$invite = new FederatedInvite();
+		$invite->setCreatedAt(1);
+		$invite->setUserId($userId);
+		$invite->setToken($token);
+
+		$this->federatedInviteMapper->expects(self::once())
+			->method('findByToken')
+			->with($token)
+			->willReturn($invite);
+		$this->federatedInviteMapper->expects(self::never())
+			->method('update');
+
+		$user = $this->createMock(IUser::class);
+		$user->method('getUID')->willReturn($userId);
+		$user->method('getEMailAddress')->willReturn('email');
+		$user->method('getDisplayName')->willReturn('displayName');
+		$this->userManager->expects(self::once())
+			->method('get')
+			->with($userId)
+			->willReturn($user);
+
+		$this->addressHandler->expects(self::once())
+			->method('removeProtocolFromUrl')
+			->with('http://127.0.0.1')
+			->willReturn('127.0.0.1');
+		$this->socialApiService->expects(self::once())
+			->method('createContact')
+			->with('remote@127.0.0.1', 'remote@example.org', 'Remote Remoteson', $userId)
+			->willReturn(null);
+
+		$response = $this->federatedInvitesService->inviteAccepted(
+			'http://127.0.0.1',
+			$token,
+			'remote',
+			'remote@example.org',
+			'Remote Remoteson',
+		);
+
+		$this->assertSame(Http::STATUS_INTERNAL_SERVER_ERROR, $response->getStatus());
 	}
 
 	public function testSetOcmInviteBoolSettingWritesAllowedKey(): void {

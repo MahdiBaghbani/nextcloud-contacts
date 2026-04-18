@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * SPDX-FileCopyrightText: 2020 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
 namespace OCA\Contacts;
 
 use Exception;
@@ -34,6 +39,8 @@ class WayfProvider {
 	public function getMeshProviders(): array {
 		$urls = preg_split('/\s+/', trim($this->appConfig->getValueString(Application::APP_ID, 'mesh_providers_service')));
 		$federations = [];
+		$ourServerUrlParts = parse_url($this->urlGenerator->getAbsoluteUrl('/'));
+		$ourFqdn = is_array($ourServerUrlParts) && isset($ourServerUrlParts['host']) ? (string)$ourServerUrlParts['host'] : '';
 
 		$found = [];
 		foreach ($urls as $url) {
@@ -50,27 +57,34 @@ class WayfProvider {
 				$fed = $data['federation'] ?? 'Unknown';
 				$federations[$fed] = $federations[$fed] ?? [];
 
-				foreach ($data['servers'] as $prov) {
-					$fqdn = parse_url($prov['url'], PHP_URL_HOST);
-					$our_fqdn = parse_url($this->urlGenerator->getAbsoluteUrl('/'))['host'];
-					if (($our_fqdn == $fqdn) || in_array($fqdn, $found)) {
+				$servers = is_array($data['servers'] ?? null) ? $data['servers'] : [];
+				foreach ($servers as $prov) {
+					$providerUrl = is_array($prov) && isset($prov['url']) ? (string)$prov['url'] : '';
+					if ($providerUrl === '') {
+						continue;
+					}
+					$fqdn = parse_url($providerUrl, PHP_URL_HOST);
+					if (!is_string($fqdn) || $fqdn === '') {
+						continue;
+					}
+					if (($ourFqdn !== '' && $ourFqdn === $fqdn) || in_array($fqdn, $found, true)) {
 						continue;
 					}
 					try {
-						$disc = $this->discovery->discover($prov['url'], true);
+						$disc = $this->discovery->discover($providerUrl, true);
 						$inviteAcceptDialog = $disc->getInviteAcceptDialog();
 					} catch (Exception $e) {
-						$this->logger->error('Discovery failed for ' . $prov['url'] . ': ' . $e->getMessage(), ['app' => Application::APP_ID]);
+						$this->logger->error('Discovery failed for ' . $providerUrl . ': ' . $e->getMessage(), ['app' => Application::APP_ID]);
 						continue;
 					}
 					if ($inviteAcceptDialog === '') {
 						// We fall back on Nextcloud default path
 						$inviteAcceptDialogPath = self::getInviteAcceptDialogPath();
-						$inviteAcceptDialog = rtrim($prov['url'], '/') . $inviteAcceptDialogPath;
+						$inviteAcceptDialog = rtrim($providerUrl, '/') . $inviteAcceptDialogPath;
 					}
 					$federations[$fed][] = [
 						'provider' => $disc->getProvider(),
-						'name' => $prov['displayName'],
+						'name' => (string)($prov['displayName'] ?? $fqdn),
 						'fqdn' => $fqdn,
 						'inviteAcceptDialog' => $inviteAcceptDialog,
 					];
@@ -91,14 +105,15 @@ class WayfProvider {
 	 */
 	public function getMeshProvidersFromCache(): array {
 		$data = $this->appConfig->getValueArray(Application::APP_ID, 'federations_cache', [], true);
-		if (isset($data) && array_key_exists('expires', $data)) {
-			$this->logger->debug('Cache hit, expires at: ' . $data['expires'], ['app' => Application::APP_ID]);
+		$expires = is_array($data) && array_key_exists('expires', $data) ? (int)$data['expires'] : 0;
+		if (is_array($data) && $expires > time()) {
+			$this->logger->debug('Cache hit, expires at: ' . $expires, ['app' => Application::APP_ID]);
 			unset($data['expires']);
-		} else {
-			$this->logger->debug('Cache miss: cron job should update providers.', ['app' => Application::APP_ID]);
-			$data = $this->getMeshProviders();
+			return $data;
 		}
-		return $data;
+
+		$this->logger->debug('Cache miss or expired: cron job should update providers.', ['app' => Application::APP_ID]);
+		return $this->getMeshProviders();
 	}
 
 	/**

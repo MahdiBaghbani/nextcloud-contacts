@@ -161,7 +161,11 @@ class SocialApiService {
 			$contact = $contacts[0];
 
 			if ($network) {
-				$allConnectors = [$this->socialProvider->getSocialConnector($network)];
+				$connector = $this->socialProvider->getSocialConnector($network);
+				if ($connector === null) {
+					return new JSONResponse([], Http::STATUS_BAD_REQUEST);
+				}
+				$allConnectors = [$connector];
 			}
 
 			$connectors = array_filter($allConnectors, function ($connector) use ($contact) {
@@ -186,7 +190,10 @@ class SocialApiService {
 				try {
 					$httpResult = $this->clientService->newClient()->get($url);
 					$socialdata = $httpResult->getBody();
-					$imageType = $httpResult->getHeader('content-type');
+					$imageTypeHeader = $httpResult->getHeader('content-type');
+					if (is_string($imageTypeHeader) && $imageTypeHeader !== '') {
+						$imageType = strtolower(trim(explode(';', $imageTypeHeader, 2)[0]));
+					}
 					if (isset($socialdata) && !empty($imageType)) {
 						break;
 					}
