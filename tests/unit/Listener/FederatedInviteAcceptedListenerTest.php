@@ -49,14 +49,18 @@ class FederatedInviteAcceptedListenerTest extends TestCase {
 		string $recipientEmail = 'michiel@example.test',
 		string $recipientName = 'Michiel',
 		string $token = 'aaaa-bbbb-cccc-d1d2',
-	): FederatedInvite&MockObject {
-		$invitation = $this->createMock(FederatedInvite::class);
-		$invitation->method('getUserId')->willReturn($userId);
-		$invitation->method('getRecipientUserId')->willReturn($recipientUserId);
-		$invitation->method('getRecipientProvider')->willReturn($recipientProvider);
-		$invitation->method('getRecipientEmail')->willReturn($recipientEmail);
-		$invitation->method('getRecipientName')->willReturn($recipientName);
-		$invitation->method('getToken')->willReturn($token);
+	): FederatedInvite {
+		// Use a real entity instead of a mock: Entity's getX/setX are magic
+		// methods (docblock-only on FederatedInvite), so PHPUnit cannot
+		// configure them on a createMock(). Calling the setters relies on
+		// Entity::__call which is the same path the production code uses.
+		$invitation = new FederatedInvite();
+		$invitation->setUserId($userId);
+		$invitation->setRecipientUserId($recipientUserId);
+		$invitation->setRecipientProvider($recipientProvider);
+		$invitation->setRecipientEmail($recipientEmail);
+		$invitation->setRecipientName($recipientName);
+		$invitation->setToken($token);
 		return $invitation;
 	}
 
