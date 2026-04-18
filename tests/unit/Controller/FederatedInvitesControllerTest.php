@@ -494,8 +494,9 @@ class FederatedInvitesControllerTest extends TestCase {
 		$this->timeFactory->method('now')->willReturn($now);
 		$this->mapper->expects($this->once())
 			->method('insert')
-			->willReturnCallback(static function (FederatedInvite $invite) use (&$capturedInvite): void {
+			->willReturnCallback(static function (FederatedInvite $invite) use (&$capturedInvite): FederatedInvite {
 				$capturedInvite = $invite;
+				return $invite;
 			});
 		$this->urlGenerator->method('linkToRoute')->with('contacts.page.index')->willReturn('/apps/contacts/');
 		$this->urlGenerator->method('getAbsoluteURL')->willReturnCallback(static fn (string $path): string => 'https://local.example' . $path);
@@ -525,11 +526,15 @@ class FederatedInvitesControllerTest extends TestCase {
 		$client = $this->createMock(\OCP\Http\Client\IClient::class);
 		$provider = $this->createMock(\OCP\OCM\IOCMProvider::class);
 		$remoteResponse = $this->createMock(\Psr\Http\Message\ResponseInterface::class);
-		$remoteResponse->method('getBody')->willReturn(json_encode([
+		$remoteBody = json_encode([
 			'userID' => 'bob',
 			'email' => 'bob@example.org',
 			'name' => 'Bob',
-		]));
+		]);
+		$this->assertIsString($remoteBody);
+		$stream = $this->createMock(\Psr\Http\Message\StreamInterface::class);
+		$stream->method('__toString')->willReturn($remoteBody);
+		$remoteResponse->method('getBody')->willReturn($stream);
 
 		$this->httpClient->method('newClient')->willReturn($client);
 		$this->discovery->method('discover')->with('https://remote.example')->willReturn($provider);
@@ -574,9 +579,13 @@ class FederatedInvitesControllerTest extends TestCase {
 		$client = $this->createMock(\OCP\Http\Client\IClient::class);
 		$provider = $this->createMock(\OCP\OCM\IOCMProvider::class);
 		$remoteResponse = $this->createMock(\Psr\Http\Message\ResponseInterface::class);
-		$remoteResponse->method('getBody')->willReturn(json_encode([
+		$remoteBody = json_encode([
 			'userID' => 'bob',
-		]));
+		]);
+		$this->assertIsString($remoteBody);
+		$stream = $this->createMock(\Psr\Http\Message\StreamInterface::class);
+		$stream->method('__toString')->willReturn($remoteBody);
+		$remoteResponse->method('getBody')->willReturn($stream);
 
 		$this->httpClient->method('newClient')->willReturn($client);
 		$this->discovery->method('discover')->willReturn($provider);
