@@ -1,0 +1,71 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * SPDX-FileCopyrightText: 2026 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
+namespace OCA\Contacts;
+
+use OCP\Config\Lexicon\Entry;
+use OCP\Config\Lexicon\ILexicon;
+use OCP\Config\Lexicon\Strictness;
+use OCP\Config\ValueType;
+
+/**
+ * Config Lexicon for contacts.
+ *
+ * Please add and manage your config keys in this file and keep the
+ * Lexicon up to date.
+ *
+ * {@see ILexicon}
+ */
+class ConfigLexicon implements ILexicon {
+	public const OCM_INVITES_ENABLED = 'ocm_invites_enabled';
+	public const OCM_INVITES_OPTIONAL_MAIL = 'ocm_invites_optional_mail';
+	public const OCM_INVITES_CC_SENDER = 'ocm_invites_cc_sender';
+	public const OCM_INVITES_ENCODED_COPY_BUTTON = 'ocm_invites_encoded_copy_button';
+
+	public function getStrictness(): Strictness {
+		return Strictness::NOTICE;
+	}
+
+	public function getAppConfigs(): array {
+		return [
+			new Entry(
+				self::OCM_INVITES_ENABLED,
+				ValueType::BOOL,
+				defaultRaw: false,
+				definition: 'Whether OCM invites for contacts are enabled.',
+				lazy: true,
+			),
+			new Entry(
+				self::OCM_INVITES_OPTIONAL_MAIL,
+				ValueType::BOOL,
+				defaultRaw: false,
+				definition: 'Whether the recipient email field is optional when creating an OCM invite.',
+				lazy: true,
+			),
+			new Entry(
+				self::OCM_INVITES_CC_SENDER,
+				ValueType::BOOL,
+				defaultRaw: true,
+				definition: 'Whether the sender is CC-ed on the OCM invite email.',
+				lazy: true,
+			),
+			new Entry(
+				self::OCM_INVITES_ENCODED_COPY_BUTTON,
+				ValueType::BOOL,
+				defaultRaw: false,
+				definition: 'Whether the invite email "Open invite" button uses the encoded WAYF URL instead of the raw token.',
+				lazy: true,
+			),
+		];
+	}
+
+	public function getUserConfigs(): array {
+		return [];
+	}
+}

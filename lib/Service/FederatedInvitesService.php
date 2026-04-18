@@ -9,6 +9,7 @@ namespace OCA\Contacts\Service;
 
 use Exception;
 use OCA\Contacts\AppInfo\Application;
+use OCA\Contacts\ConfigLexicon;
 use OCA\Contacts\Db\FederatedInviteMapper;
 use OCA\Contacts\Exception\ContactExistsException;
 use OCA\DAV\CardDAV\CardDavBackend;
@@ -25,8 +26,6 @@ use Psr\Log\LoggerInterface;
 
 class FederatedInvitesService {
 
-	// Is OCM invites capability enabled by default ?
-	private const OCM_INVITES_ENABLED_BY_DEFAULT = false;
 	// The default route of the invite accept dialog
 	public const OCM_INVITE_ACCEPT_DIALOG_ROUTE = '/ocm/invite-accept-dialog';
 	// The default expiration period of a new invite in seconds, ie. 30 days
@@ -46,28 +45,19 @@ class FederatedInvitesService {
 	}
 
 	public function isOcmInvitesEnabled(): bool {
-		return $this->appConfig->getValueBool(Application::APP_ID, 'ocm_invites_enabled', FederatedInvitesService::OCM_INVITES_ENABLED_BY_DEFAULT);
+		return $this->appConfig->getValueBool(Application::APP_ID, ConfigLexicon::OCM_INVITES_ENABLED);
 	}
 
-	/**
-	 * Whether email is optional when creating invites (default: false = email required)
-	 */
 	public function isOptionalMailEnabled(): bool {
-		return $this->appConfig->getValueBool(Application::APP_ID, 'ocm_invites_optional_mail', false);
+		return $this->appConfig->getValueBool(Application::APP_ID, ConfigLexicon::OCM_INVITES_OPTIONAL_MAIL);
 	}
 
-	/**
-	 * Whether CC sender checkbox is available (default: true)
-	 */
 	public function isCcSenderEnabled(): bool {
-		return $this->appConfig->getValueBool(Application::APP_ID, 'ocm_invites_cc_sender', true);
+		return $this->appConfig->getValueBool(Application::APP_ID, ConfigLexicon::OCM_INVITES_CC_SENDER);
 	}
 
-	/**
-	 * Whether the encoded copy button is shown (default: false)
-	 */
 	public function isEncodedCopyButtonEnabled(): bool {
-		return $this->appConfig->getValueBool(Application::APP_ID, 'ocm_invites_encoded_copy_button', false);
+		return $this->appConfig->getValueBool(Application::APP_ID, ConfigLexicon::OCM_INVITES_ENCODED_COPY_BUTTON);
 	}
 
 	/**
@@ -75,9 +65,9 @@ class FederatedInvitesService {
 	 * admin settings page so callers cannot persist arbitrary keys.
 	 */
 	public const OCM_INVITES_BOOL_KEYS = [
-		'ocm_invites_optional_mail',
-		'ocm_invites_cc_sender',
-		'ocm_invites_encoded_copy_button',
+		ConfigLexicon::OCM_INVITES_OPTIONAL_MAIL,
+		ConfigLexicon::OCM_INVITES_CC_SENDER,
+		ConfigLexicon::OCM_INVITES_ENCODED_COPY_BUTTON,
 	];
 
 	/**

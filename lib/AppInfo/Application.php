@@ -8,6 +8,7 @@ namespace OCA\Contacts\AppInfo;
 
 use OCA\CloudFederationAPI\Events\FederatedInviteAcceptedEvent;
 use OCA\Contacts\Capabilities;
+use OCA\Contacts\ConfigLexicon;
 use OCA\Contacts\Dav\PatchPlugin;
 use OCA\Contacts\Event\LoadContactsOcaApiEvent;
 use OCA\Contacts\Listener\FederatedInviteAcceptedListener;
@@ -37,6 +38,7 @@ class Application extends App implements IBootstrap {
 	#[\Override]
 	public function register(IRegistrationContext $context): void {
 		$context->registerCapability(Capabilities::class);
+		$context->registerConfigLexicon(ConfigLexicon::class);
 
 		$context->registerEventListener(LoadAdditionalScriptsEvent::class, LoadContactsFilesActions::class);
 		$context->registerEventListener(LoadContactsOcaApiEvent::class, LoadContactsOcaApi::class);

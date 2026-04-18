@@ -7,6 +7,9 @@
 
 namespace OCA\Contacts\Command;
 
+use OC\Core\AppInfo\ConfigLexicon as CoreConfigLexicon;
+use OCA\Contacts\AppInfo\Application;
+use OCA\Contacts\ConfigLexicon;
 use OCP\IAppConfig;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -26,15 +29,15 @@ class EnableOcmInvites extends Command {
 	}
 
 	protected function execute(InputInterface $input, OutputInterface $output): int {
-		$isAlreadyEnabled = $this->appConfig->getValueBool('contacts', 'ocm_invites_enabled');
+		$isAlreadyEnabled = $this->appConfig->getValueBool(Application::APP_ID, ConfigLexicon::OCM_INVITES_ENABLED);
 
 		if ($isAlreadyEnabled) {
 			$output->writeln('OCM Invites already enabled.');
 			return self::SUCCESS;
 		}
 
-		$this->appConfig->setValueBool('contacts', 'ocm_invites_enabled', true);
-		$this->appConfig->setValueString('core', 'ocm_invite_accept_dialog', 'contacts.federated_invites.invite_accept_dialog');
+		$this->appConfig->setValueBool(Application::APP_ID, ConfigLexicon::OCM_INVITES_ENABLED, true);
+		$this->appConfig->setValueString('core', CoreConfigLexicon::OCM_INVITE_ACCEPT_DIALOG, 'contacts.federated_invites.invite_accept_dialog');
 
 		$output->writeln('OCM Invites successfully enabled.');
 		return self::SUCCESS;
