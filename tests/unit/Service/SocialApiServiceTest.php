@@ -618,4 +618,107 @@ class SocialApiServiceTest extends TestCase {
 		$result = $this->service->existsContact('11111111-1111-1111-1111-111111111111', 'not-existing', 'admin');
 		$this->assertEquals(false, $result);
 	}
+
+	public function testCreateFederatedContactReturnsNullWhenContactExists(): void {
+		$cloudId = 'einstein@nextcloud2.docker';
+		$existingContact = ['URI' => 'existing-contact-uri', 'CLOUD' => $cloudId];
+
+		$this->manager
+			->expects($this->once())
+			->method('search')
+			->with($cloudId, ['CLOUD'])
+			->willReturn([$existingContact]);
+
+		$this->manager
+			->expects($this->never())
+			->method('getUserAddressBooks');
+		$this->manager
+			->expects($this->never())
+			->method('createOrUpdate');
+
+		$result = $this->service->createFederatedContact($cloudId, 'einstein@example.org', 'Albert Einstein', 'mahdi');
+		$this->assertNull($result);
+	}
+
+	public function testCreateFederatedContactReturnsNullWhenNoContactsAddressBook(): void {
+		$cloudId = 'einstein@nextcloud2.docker';
+
+		$otherBook = $this->createMock(IAddressBook::class);
+		$otherBook->method('getUri')->willReturn('shared-with-me');
+
+		$this->manager
+			->expects($this->once())
+			->method('search')
+			->with($cloudId, ['CLOUD'])
+			->willReturn([]);
+		$this->manager
+			->expects($this->once())
+			->method('getUserAddressBooks')
+			->willReturn([$otherBook]);
+		$this->manager
+			->expects($this->never())
+			->method('createOrUpdate');
+
+		$this->logger
+			->expects($this->once())
+			->method('error')
+			->with($this->stringContains('Contacts address book not found'), $this->anything());
+
+		$result = $this->service->createFederatedContact($cloudId, 'einstein@example.org', 'Albert Einstein', 'mahdi');
+		$this->assertNull($result);
+	}
+
+	public function testCreateFederatedContactPersistsToContactsAddressBook(): void {
+		$cloudId = 'einstein@nextcloud2.docker';
+		$email = 'einstein@example.org';
+		$name = 'Albert Einstein';
+		$bookKey = 'addressbookid-42';
+		$persisted = ['URI' => 'new-uri', 'FN' => $name, 'EMAIL' => $email, 'CLOUD' => $cloudId];
+
+		$contactsBook = $this->createMock(IAddressBook::class);
+		$contactsBook->method('getUri')->willReturn('contacts');
+		$contactsBook->method('getKey')->willReturn($bookKey);
+
+		$otherBook = $this->createMock(IAddressBook::class);
+		$otherBook->method('getUri')->willReturn('work');
+
+		$this->manager
+			->expects($this->once())
+			->method('search')
+			->with($cloudId, ['CLOUD'])
+			->willReturn([]);
+		$this->manager
+			->expects($this->once())
+			->method('getUserAddressBooks')
+			->willReturn([$otherBook, $contactsBook]);
+		$this->manager
+			->expects($this->once())
+			->method('createOrUpdate')
+			->with(
+				['FN' => $name, 'EMAIL' => $email, 'CLOUD' => $cloudId],
+				$bookKey,
+			)
+			->willReturn($persisted);
+
+		$result = $this->service->createFederatedContact($cloudId, $email, $name, 'mahdi');
+		$this->assertSame($persisted, $result);
+	}
+
+	public function testCreateFederatedContactSwallowsExceptionsAndReturnsNull(): void {
+		$cloudId = 'einstein@nextcloud2.docker';
+
+		$this->manager
+			->expects($this->once())
+			->method('search')
+			->with($cloudId, ['CLOUD'])
+			->willThrowException(new \RuntimeException('boom'));
+
+		$this->logger
+			->expects($this->once())
+			->method('error')
+			->with($this->stringContains('exception occurred creating a federated contact'), $this->anything());
+
+		$result = $this->service->createFederatedContact($cloudId, 'einstein@example.org', 'Albert Einstein', 'mahdi');
+		$this->assertNull($result);
+	}
 }
