@@ -16,11 +16,6 @@ export default defineConfig([
 			'@typescript-eslint/no-unused-vars': 'off',
 			'@typescript-eslint/no-explicit-any': 'off',
 			'vue/multi-word-component-names': 'off',
-			// JSDocs are welcome but lint:fix should not create empty ones
-			'jsdoc/require-jsdoc': 'off',
-			'jsdoc/require-param': 'off',
-			// Forbid empty JSDocs
-			'jsdoc/no-blank-blocks': 'error',
 		},
 	},
 ])
