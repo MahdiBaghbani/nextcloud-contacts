@@ -197,10 +197,13 @@ import RouterMixin from '../mixins/RouterMixin.js'
 import { GROUP_ALL_CONTACTS, GROUP_ALL_OCM_INVITES, GROUP_NO_GROUP_CONTACTS, ROUTE_CIRCLE, ROUTE_NAME_ALL_OCM_INVITES, ROUTE_NAME_INVITE_ACCEPT_DIALOG, ROUTE_NAME_OCM_INVITE, ROUTE_USER_GROUP } from '../models/constants.ts'
 import Contact from '../models/contact.js'
 import rfcProps from '../models/rfcProps.js'
+import { mapStores } from 'pinia'
+
 import client from '../services/cdav.js'
 import isCirclesEnabled from '../services/isCirclesEnabled.js'
 import isOcmInvitesEnabled from '../services/isOcmInvitesEnabled.js'
 import logger from '../services/logger.js'
+import useOcmInvitesStore from '../store/ocminvites.ts'
 import usePrincipalsStore from '../store/principals.js'
 import useUserGroupStore from '../store/userGroup.ts'
 
@@ -359,8 +362,10 @@ const _default = {
 		},
 
 		invitesList() {
-			return this.$store.getters.getSortedOcmInvites
+			return this.ocminvitesStore.sortedOcmInvites
 		},
+
+		...mapStores(useOcmInvitesStore),
 
 		isInvitesView() {
 			return (
@@ -456,7 +461,7 @@ const _default = {
 							this.selectedGroup = GROUP_ALL_OCM_INVITES
 						}
 						// get OCM invites
-						this.$store.dispatch('fetchOcmInvites').then(() => {
+						this.ocminvitesStore.fetchOcmInvites().then(() => {
 							this.loadingInvites = false
 						})
 					}
@@ -590,7 +595,7 @@ const _default = {
 		},
 
 		fetchOcmInvites() {
-			this.$store.dispatch('fetchOcmInvites')
+			this.ocminvitesStore.fetchOcmInvites()
 			this.loadingInvites = false
 		},
 
@@ -741,10 +746,7 @@ const _default = {
 			}
 			this.loadingUpdate = true
 			try {
-				const response = await this.$store.dispatch(
-					'newOcmInvite',
-					this.ocmInvite,
-				)
+				const response = await this.ocminvitesStore.newOcmInvite(this.ocmInvite)
 				this.cancelNewInvite()
 				window.open(response.data.invite, '_self')
 			} catch (error) {

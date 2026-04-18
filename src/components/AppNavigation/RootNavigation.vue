@@ -252,6 +252,7 @@ import { CHART_ALL_CONTACTS, CIRCLE_DESC, CONTACTS_SETTINGS, ELLIPSIS_COUNT, GRO
 import isCirclesEnabled from '../../services/isCirclesEnabled.js'
 import isContactsInteractionEnabled from '../../services/isContactsInteractionEnabled.js'
 import isOcmInvitesEnabled from '../../services/isOcmInvitesEnabled.js'
+import useOcmInvitesStore from '../../store/ocminvites.ts'
 import useUserGroupStore from '../../store/userGroup.ts'
 
 export default {
@@ -354,7 +355,7 @@ export default {
 		},
 
 		ocmInvites() {
-			return this.$store.getters.getSortedOcmInvites
+			return this.ocminvitesStore.sortedOcmInvites
 		},
 
 		// list all the contacts that doesn't have a group
@@ -452,7 +453,7 @@ export default {
 				: t('contacts', 'Collapse teams')
 		},
 
-		...mapStores(useUserGroupStore),
+		...mapStores(useOcmInvitesStore, useUserGroupStore),
 	},
 
 	methods: {

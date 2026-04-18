@@ -25,8 +25,10 @@ jest.mock('@nextcloud/router', () => ({
 }))
 
 import axios from '@nextcloud/axios'
-import ocmInvites from '../../../src/store/ocminvites.ts'
+import { createPinia, setActivePinia } from 'pinia'
+
 import { toOcmInviteEntry } from '../../../src/models/ocminvite.ts'
+import useOcmInvitesStore from '../../../src/store/ocminvites.ts'
 
 const TOKEN = 'token-1234'
 
@@ -44,32 +46,18 @@ const flatInvitePayload = (overrides = {}) => ({
 	...overrides,
 })
 
-const makeStore = (initialState = {}) => {
-	const state = {
-		ocmInvites: {},
-		sortedOcmInvites: [],
-		orderKey: 'recipientEmail',
-		...initialState,
-	}
-	const mutations = ocmInvites.mutations
-	const commit = (mutation, payload) => {
-		mutations[mutation](state, payload)
-	}
-	const context = { state, commit }
-	return { state, context, commit }
-}
-
 describe('ocminvites store', () => {
 	beforeEach(() => {
 		jest.clearAllMocks()
+		setActivePinia(createPinia())
 	})
 
 	describe('attachEmailAndSendOcmInvite', () => {
 		test('PATCHes the per-invite email endpoint with the email and message payload', async () => {
 			axios.patch.mockResolvedValue({ data: flatInvitePayload() })
 
-			const { context } = makeStore()
-			await ocmInvites.actions.attachEmailAndSendOcmInvite(context, {
+			const store = useOcmInvitesStore()
+			await store.attachEmailAndSendOcmInvite({
 				token: TOKEN,
 				email: 'recipient@example.org',
 				message: 'hello',
@@ -87,8 +75,8 @@ describe('ocminvites store', () => {
 		test('coerces missing email and message to empty strings', async () => {
 			axios.patch.mockResolvedValue({ data: flatInvitePayload() })
 
-			const { context } = makeStore()
-			await ocmInvites.actions.attachEmailAndSendOcmInvite(context, { token: TOKEN })
+			const store = useOcmInvitesStore()
+			await store.attachEmailAndSendOcmInvite({ token: TOKEN })
 
 			const [, payload] = axios.patch.mock.calls[0]
 			expect(payload).toEqual({ email: '', message: '' })
@@ -97,95 +85,92 @@ describe('ocminvites store', () => {
 		test('stores a fresh invite entry from a flat backend response', async () => {
 			axios.patch.mockResolvedValue({ data: flatInvitePayload() })
 
-			const { state, context } = makeStore()
-			const response = await ocmInvites.actions.attachEmailAndSendOcmInvite(context, {
+			const store = useOcmInvitesStore()
+			const response = await store.attachEmailAndSendOcmInvite({
 				token: TOKEN,
 				email: 'recipient@example.org',
 				message: '',
 			})
 
 			expect(response.data.token).toBe(TOKEN)
-			const stored = state.ocmInvites[TOKEN]
+			const stored = store.ocmInvites[TOKEN]
 			expect(stored.key).toBe(TOKEN)
 			expect(stored.token).toBe(TOKEN)
 			expect(stored.recipientEmail).toBe('recipient@example.org')
-			expect(state.sortedOcmInvites).toHaveLength(1)
-			expect(state.sortedOcmInvites[0].key).toBe(TOKEN)
+			expect(store.sortedOcmInvites).toHaveLength(1)
+			expect(store.sortedOcmInvites[0].key).toBe(TOKEN)
 		})
 
 		test('rethrows when the request fails and leaves state untouched', async () => {
 			const failure = new Error('boom')
 			axios.patch.mockRejectedValue(failure)
 
-			const { state, context } = makeStore()
+			const store = useOcmInvitesStore()
 			await expect(
-				ocmInvites.actions.attachEmailAndSendOcmInvite(context, {
+				store.attachEmailAndSendOcmInvite({
 					token: TOKEN,
 					email: 'recipient@example.org',
 					message: '',
 				}),
 			).rejects.toBe(failure)
 
-			expect(state.ocmInvites).toEqual({})
-			expect(state.sortedOcmInvites).toEqual([])
+			expect(store.ocmInvites).toEqual({})
+			expect(store.sortedOcmInvites).toEqual([])
 		})
 	})
 
-	describe('updateOcmInvite mutation', () => {
+	describe('updateOcmInvite action', () => {
 		test('replaces the invite for the matching token without dropping others', () => {
-			const { state, commit } = makeStore({
-				ocmInvites: {
-					'other-token': toOcmInviteEntry({ token: 'other-token', recipientEmail: 'other@example.org' }),
-				},
-			})
+			const store = useOcmInvitesStore()
+			store.ocmInvites = {
+				'other-token': toOcmInviteEntry({ token: 'other-token', recipientEmail: 'other@example.org' }),
+			}
 
-			commit('updateOcmInvite', flatInvitePayload({ recipientEmail: 'fresh@example.org' }))
+			store.updateOcmInvite(flatInvitePayload({ recipientEmail: 'fresh@example.org' }))
 
-			expect(Object.keys(state.ocmInvites)).toEqual(expect.arrayContaining(['other-token', TOKEN]))
-			expect(state.ocmInvites[TOKEN].recipientEmail).toBe('fresh@example.org')
-			expect(state.ocmInvites['other-token'].recipientEmail).toBe('other@example.org')
+			expect(Object.keys(store.ocmInvites)).toEqual(expect.arrayContaining(['other-token', TOKEN]))
+			expect(store.ocmInvites[TOKEN].recipientEmail).toBe('fresh@example.org')
+			expect(store.ocmInvites['other-token'].recipientEmail).toBe('other@example.org')
 		})
 
 		test('ignores payloads without a token and never mutates state', () => {
 			const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
-			const { state, commit } = makeStore()
+			const store = useOcmInvitesStore()
 
-			commit('updateOcmInvite', { recipientEmail: 'no-token@example.org' })
+			store.updateOcmInvite({ recipientEmail: 'no-token@example.org' })
 
-			expect(state.ocmInvites).toEqual({})
+			expect(store.ocmInvites).toEqual({})
 			expect(errorSpy).toHaveBeenCalled()
 			errorSpy.mockRestore()
 		})
 	})
 
-	describe('deleteOcmInvite mutation', () => {
+	describe('removeOcmInvite action', () => {
 		test('removes only the targeted invite from the sorted list', () => {
 			const a = toOcmInviteEntry({ token: 'a' })
 			const b = toOcmInviteEntry({ token: 'b' })
-			const { state, commit } = makeStore({
-				ocmInvites: { a, b },
-				sortedOcmInvites: [a, b],
-			})
+			const store = useOcmInvitesStore()
+			store.ocmInvites = { a, b }
+			store.sortedOcmInvites = [a, b]
 
-			commit('deleteOcmInvite', 'a')
+			store.removeOcmInvite('a')
 
-			expect(state.sortedOcmInvites.map(i => i.key)).toEqual(['b'])
-			expect(state.ocmInvites).not.toHaveProperty('a')
-			expect(state.ocmInvites).toHaveProperty('b')
+			expect(store.sortedOcmInvites.map(i => i.key)).toEqual(['b'])
+			expect(store.ocmInvites).not.toHaveProperty('a')
+			expect(store.ocmInvites).toHaveProperty('b')
 		})
 
 		test('does not splice the last entry when the key is unknown', () => {
 			const a = toOcmInviteEntry({ token: 'a' })
 			const b = toOcmInviteEntry({ token: 'b' })
-			const { state, commit } = makeStore({
-				ocmInvites: { a, b },
-				sortedOcmInvites: [a, b],
-			})
+			const store = useOcmInvitesStore()
+			store.ocmInvites = { a, b }
+			store.sortedOcmInvites = [a, b]
 
-			commit('deleteOcmInvite', 'missing-key')
+			store.removeOcmInvite('missing-key')
 
-			expect(state.sortedOcmInvites.map(i => i.key)).toEqual(['a', 'b'])
-			expect(state.ocmInvites).toEqual({ a, b })
+			expect(store.sortedOcmInvites.map(i => i.key)).toEqual(['a', 'b'])
+			expect(store.ocmInvites).toEqual({ a, b })
 		})
 	})
 })

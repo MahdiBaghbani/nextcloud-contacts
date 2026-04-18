@@ -164,9 +164,11 @@ import {
 	NcButton,
 	NcEmptyContent,
 } from '@nextcloud/vue'
+import { mapStores } from 'pinia'
 import IconAccountSwitchOutline from 'vue-material-design-icons/AccountSwitchOutline.vue'
 import ContentCopyIcon from 'vue-material-design-icons/ContentCopy.vue'
 import EmailFastOutlineIcon from 'vue-material-design-icons/EmailFastOutline.vue'
+import useOcmInvitesStore from '../../store/ocminvites.ts'
 import OcmAttachEmailForm from './OcmAttachEmailForm.vue'
 
 const dateFormat = 'lll'
@@ -220,8 +222,10 @@ export default {
 		},
 
 		invite() {
-			return this.$store.getters.getOcmInvite(this.inviteKey)
+			return this.ocminvitesStore.getOcmInvite(this.inviteKey)
 		},
+
+		...mapStores(useOcmInvitesStore),
 
 		provider() {
 			return window.location.host
@@ -288,7 +292,7 @@ export default {
 
 		async onResend() {
 			try {
-				const response = await this.$store.dispatch('resendOcmInvite', this.invite)
+				const response = await this.ocminvitesStore.resendOcmInvite(this.invite)
 				window.open(response.data.invite, '_self')
 			} catch (error) {
 				const serverMessage = error?.response?.data?.message
@@ -297,7 +301,7 @@ export default {
 		},
 
 		async onRevoke() {
-			await this.$store.dispatch('deleteOcmInvite', this.invite)
+			await this.ocminvitesStore.deleteOcmInvite(this.invite)
 		},
 
 		openAttachEmailForm() {
@@ -317,7 +321,7 @@ export default {
 			}
 			this.submittingAttachEmail = true
 			try {
-				await this.$store.dispatch('attachEmailAndSendOcmInvite', {
+				await this.ocminvitesStore.attachEmailAndSendOcmInvite({
 					token: this.invite.token,
 					email,
 					message,

@@ -44,10 +44,12 @@ import {
 	NcLoadingIcon as IconLoading,
 } from '@nextcloud/vue'
 import mitt from 'mitt'
+import { mapStores } from 'pinia'
 import IconAccountSwitchOutline from 'vue-material-design-icons/AccountSwitchOutline.vue'
 import OcmInviteDetails from '../Ocm/OcmInviteDetails.vue'
 import OcmInvitesList from '../Ocm/OcmInvitesList.vue'
 import RouterMixin from '../../mixins/RouterMixin.js'
+import useOcmInvitesStore from '../../store/ocminvites.ts'
 
 export default {
 	name: 'OcmInvitesContent',
@@ -83,13 +85,15 @@ export default {
 	},
 
 	computed: {
+		...mapStores(useOcmInvitesStore),
+
 		// store variables
 		invites() {
-			return this.$store.getters.getOcmInvites
+			return this.ocminvitesStore.ocmInvites
 		},
 
 		sortedInvites() {
-			return this.$store.getters.getSortedOcmInvites
+			return this.ocminvitesStore.sortedOcmInvites
 		},
 
 		selectedInvite() {
