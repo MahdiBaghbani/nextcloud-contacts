@@ -24,6 +24,7 @@ use OCP\App\IAppManager;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\BruteForceProtection;
+use OCP\AppFramework\Http\Attribute\FrontpageRoute;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\Attribute\PublicPage;
@@ -105,6 +106,7 @@ class FederatedInvitesController extends PageController {
 	 * @return JSONResponse
 	 */
 	#[NoAdminRequired]
+	#[FrontpageRoute(verb: 'GET', url: '/ocm/invitations')]
 	public function getInvites(): JSONResponse {
 		$_invites = $this->federatedInviteMapper->findOpenInvitesByUid($this->userSession->getUser()->getUID());
 		$invites = [];
@@ -126,6 +128,7 @@ class FederatedInvitesController extends PageController {
 	 * @return JSONResponse with data signature ['token' | 'message'] - the token of the deleted invitation or an error message in case of error
 	 */
 	#[NoAdminRequired]
+	#[FrontpageRoute(verb: 'DELETE', url: '/ocm/invitations/{token}')]
 	public function deleteInvite(string $token): JSONResponse {
 		try {
 			$uid = $this->userSession->getUser()->getUID();
@@ -150,6 +153,7 @@ class FederatedInvitesController extends PageController {
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
+	#[FrontpageRoute(verb: 'GET', url: FederatedInvitesService::OCM_INVITE_ACCEPT_DIALOG_ROUTE)]
 	public function inviteAcceptDialog(string $token = '', string $providerDomain = ''): TemplateResponse {
 		$this->initialState->provideInitialState('inviteToken', $token);
 		$this->initialState->provideInitialState('inviteProvider', $providerDomain);
@@ -170,6 +174,7 @@ class FederatedInvitesController extends PageController {
 	#[NoAdminRequired]
 	#[UserRateLimit(limit: 60, period: 3600)]
 	#[BruteForceProtection(action: 'ocmInviteCreate')]
+	#[FrontpageRoute(verb: 'POST', url: '/ocm/invitations')]
 	public function createInvite(string $email = '', string $message = '', string $note = '', bool $ccSender = false): JSONResponse {
 		// Enforce email required when optional mail is disabled
 		if (empty($email) && !$this->federatedInvitesService->isOptionalMailEnabled()) {
@@ -255,6 +260,7 @@ class FederatedInvitesController extends PageController {
 	#[NoAdminRequired]
 	#[UserRateLimit(limit: 60, period: 3600)]
 	#[BruteForceProtection(action: 'ocmInviteAccept')]
+	#[FrontpageRoute(verb: 'PATCH', url: '/ocm/invitations/{token}/accept')]
 	public function acceptInvite(string $token = '', string $provider = ''): JSONResponse {
 		if ($token === '' || $provider === '') {
 			$this->logger->error("Both token and provider must be specified. Received: token=$token, provider=$provider", ['app' => Application::APP_ID]);
@@ -355,6 +361,7 @@ class FederatedInvitesController extends PageController {
 	#[NoAdminRequired]
 	#[UserRateLimit(limit: 30, period: 3600)]
 	#[BruteForceProtection(action: 'ocmInviteResend')]
+	#[FrontpageRoute(verb: 'PATCH', url: '/ocm/invitations/{token}/resend')]
 	public function resendInvite(string $token): JSONResponse {
 		$uid = $this->userSession->getUser()->getUID();
 		try {
@@ -415,6 +422,7 @@ class FederatedInvitesController extends PageController {
 	#[NoAdminRequired]
 	#[UserRateLimit(limit: 30, period: 3600)]
 	#[BruteForceProtection(action: 'ocmInviteAttachEmail')]
+	#[FrontpageRoute(verb: 'PATCH', url: '/ocm/invitations/{token}/email')]
 	public function attachEmailAndSend(string $token, string $email = '', string $message = ''): JSONResponse {
 		$uid = $this->userSession->getUser()->getUID();
 		try {
@@ -523,6 +531,7 @@ class FederatedInvitesController extends PageController {
 	 * @return DataResponse
 	 */
 	#[PublicPage]
+	#[FrontpageRoute(verb: 'GET', url: '/discover')]
 	public function discover(string $base): DataResponse {
 		$base = trim($base);
 		if ($base === '') {
@@ -572,6 +581,7 @@ class FederatedInvitesController extends PageController {
 	 */
 	#[PublicPage]
 	#[NoCSRFRequired]
+	#[FrontpageRoute(verb: 'GET', url: '/wayf')]
 	public function wayf(string $token = ''): TemplateResponse {
 		Util::addScript(Application::APP_ID, 'contacts-wayf');
 		Util::addStyle(Application::APP_ID, 'contacts-wayf');
@@ -655,6 +665,7 @@ class FederatedInvitesController extends PageController {
 	 * @param bool $value the new value
 	 * @return JSONResponse empty body with the appropriate HTTP status
 	 */
+	#[FrontpageRoute(verb: 'PUT', url: '/ocm/admin/settings/{key}')]
 	public function setOcmInviteBoolSetting(string $key, bool $value): JSONResponse {
 		if (!$this->federatedInvitesService->setOcmInviteBoolSetting($key, $value)) {
 			return new JSONResponse(['message' => 'Unknown setting key'], Http::STATUS_FORBIDDEN);

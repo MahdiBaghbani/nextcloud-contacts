@@ -117,7 +117,7 @@ class WayfProvider {
 	 */
 	public function getWayfEndpoint(): ?string {
 		// default wayf endpoint
-		$defaultWayfEndpoint = $this->urlGenerator->linkToRouteAbsolute(Application::APP_ID . '.federated_invites.wayf');
+		$defaultWayfEndpoint = $this->urlGenerator->linkToRouteAbsolute(Application::APP_ID . '.federatedinvites.wayf');
 		return $this->appConfig->getValueString(Application::APP_ID, 'wayf_endpoint', $defaultWayfEndpoint);
 	}
 
@@ -127,6 +127,6 @@ class WayfProvider {
 	 * @return string
 	 */
 	public function getInviteAcceptDialogPath(): string {
-		return $this->urlGenerator->linkToRoute(Application::APP_ID . '.federated_invites.invite_accept_dialog');
+		return $this->urlGenerator->linkToRoute(Application::APP_ID . '.federatedinvites.inviteacceptdialog');
 	}
 }

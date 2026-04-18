@@ -37,7 +37,7 @@ class EnableOcmInvites extends Command {
 		}
 
 		$this->appConfig->setValueBool(Application::APP_ID, ConfigLexicon::OCM_INVITES_ENABLED, true);
-		$this->appConfig->setValueString('core', CoreConfigLexicon::OCM_INVITE_ACCEPT_DIALOG, 'contacts.federated_invites.invite_accept_dialog');
+		$this->appConfig->setValueString('core', CoreConfigLexicon::OCM_INVITE_ACCEPT_DIALOG, 'contacts.federatedinvites.inviteacceptdialog');
 
 		$output->writeln('OCM Invites successfully enabled.');
 		return self::SUCCESS;
