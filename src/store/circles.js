@@ -223,14 +223,19 @@ const actions = {
 	 * @param {object} context the store mutations Current context
 	 */
 	async updateCirclesPopulationCount(context) {
-		const circles = await getCircles()
-		circles.forEach((circle) => {
-			context.commit('updateCirclePopulationCount', {
-				circleId: circle.id,
-				populationInherited: circle.populationInherited,
+		try {
+			const circles = await getCircles()
+			circles.forEach((circle) => {
+				context.commit('updateCirclePopulationCount', {
+					circleId: circle.id,
+					populationInherited: circle.populationInherited,
+				})
 			})
-		})
-		logger.debug('Updated population count for all circles')
+			logger.debug('Updated population count for all circles')
+		} catch (error) {
+			console.error(error)
+			logger.warn('Failed to refresh teams population count', { error })
+		}
 	},
 
 	/**
