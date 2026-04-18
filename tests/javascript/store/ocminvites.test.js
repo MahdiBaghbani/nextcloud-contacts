@@ -267,15 +267,27 @@ describe('ocminvites store', () => {
 			expect(axios.get).toHaveBeenCalledTimes(1)
 		})
 
-		test('newOcmInvite rejects when refresh fetch fails', async () => {
+		test('newOcmInvite resolves when refresh fetch fails', async () => {
 			const failure = new Error('refresh failed')
-			axios.post.mockResolvedValue({ data: { invite: '/invite/link' } })
+			const createResponse = { data: { invite: '/invite/link' } }
+			axios.post.mockResolvedValue(createResponse)
 			axios.get.mockRejectedValue(failure)
+
+			const store = useOcmInvitesStore()
+			await expect(store.newOcmInvite({ email: 'recipient@example.org', message: '', note: '' })).resolves.toBe(createResponse)
+
+			expect(store.inviteListStatus).toBe('error')
+			expect(store.inviteListError).toContain('refresh failed')
+		})
+
+		test('newOcmInvite rejects when create request fails', async () => {
+			const failure = new Error('create failed')
+			axios.post.mockRejectedValue(failure)
 
 			const store = useOcmInvitesStore()
 			await expect(store.newOcmInvite({ email: 'recipient@example.org', message: '', note: '' })).rejects.toBe(failure)
 
-			expect(store.inviteListStatus).toBe('error')
+			expect(axios.get).not.toHaveBeenCalled()
 		})
 
 		test('resendOcmInvite rejects when refresh fetch fails', async () => {

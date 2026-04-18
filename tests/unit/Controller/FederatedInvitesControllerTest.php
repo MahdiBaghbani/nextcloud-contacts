@@ -484,6 +484,116 @@ class FederatedInvitesControllerTest extends TestCase {
 		$this->assertSame($expiredAt, $invite->getExpiredAt());
 	}
 
+	public function testCreateInviteAllowsLinkOnlyWhenOptionalMailEnabled(): void {
+		$capturedInvite = null;
+		$now = $this->createMock(\DateTimeImmutable::class);
+		$now->method('getTimestamp')->willReturn(1_800_000_000);
+
+		$this->invitesService->method('isOptionalMailEnabled')->willReturn(true);
+		$this->invitesService->method('getInviteExpirationDate')->willReturn(1_800_000_000 + 2_592_000);
+		$this->timeFactory->method('now')->willReturn($now);
+		$this->mapper->expects($this->once())
+			->method('insert')
+			->willReturnCallback(static function (FederatedInvite $invite) use (&$capturedInvite): void {
+				$capturedInvite = $invite;
+			});
+		$this->urlGenerator->method('linkToRoute')->with('contacts.page.index')->willReturn('/apps/contacts/');
+		$this->urlGenerator->method('getAbsoluteURL')->willReturnCallback(static fn (string $path): string => 'https://local.example' . $path);
+
+		$response = $this->controller->createInvite('', '', 'mesh peer', false);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertNotNull($capturedInvite);
+		$this->assertSame('mesh peer', $capturedInvite->getRecipientName());
+		$this->assertSame(self::UID, $capturedInvite->getUserId());
+		$this->assertStringContainsString('/apps/contacts/ocm-invites/', $response->getData()['invite']);
+	}
+
+	public function testCreateInviteRejectsMissingEmailWhenOptionalMailDisabled(): void {
+		$this->invitesService->expects($this->once())
+			->method('isOptionalMailEnabled')
+			->willReturn(false);
+		$this->mapper->expects($this->never())->method('insert');
+
+		$response = $this->controller->createInvite('', '', '', false);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Email address is required.', $response->getData()['message']);
+	}
+
+	public function testAcceptInviteReturnsContactUrlOnSuccess(): void {
+		$client = $this->createMock(\OCP\Http\Client\IClient::class);
+		$provider = $this->createMock(\OCP\OCM\IOCMProvider::class);
+		$remoteResponse = $this->createMock(\Psr\Http\Message\ResponseInterface::class);
+		$remoteResponse->method('getBody')->willReturn(json_encode([
+			'userID' => 'bob',
+			'email' => 'bob@example.org',
+			'name' => 'Bob',
+		]));
+
+		$this->httpClient->method('newClient')->willReturn($client);
+		$this->discovery->method('discover')->with('https://remote.example')->willReturn($provider);
+		$provider->method('getCapabilities')->willReturn(['invites']);
+		$this->discovery->expects($this->once())
+			->method('requestRemoteOcmEndpoint')
+			->with(
+				null,
+				'https://remote.example',
+				'/invite-accepted',
+				$this->callback(static function (array $payload): bool {
+					return $payload['token'] === self::TOKEN
+						&& $payload['userID'] === self::UID
+						&& $payload['email'] === 'alice@example.org'
+						&& $payload['name'] === 'Alice';
+				}),
+				'POST',
+				$client,
+			)
+			->willReturn($remoteResponse);
+		$this->addressHandler->method('removeProtocolFromUrl')->with('https://remote.example')->willReturn('remote.example');
+		$this->invitesService->method('getProviderFQDN')->willReturn('local.example');
+		$this->invitesService->method('createNewContact')->with(
+			'bob@remote.example',
+			'bob@example.org',
+			'Bob',
+			null,
+		)->willReturn('contact-uid~contacts');
+		$this->urlGenerator->method('linkToRoute')->with('contacts.page.index')->willReturn('/apps/contacts/');
+		$this->urlGenerator->method('getAbsoluteURL')->willReturnCallback(static fn (string $path): string => 'https://local.example' . $path);
+
+		$response = $this->controller->acceptInvite(self::TOKEN, 'remote.example');
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame(
+			'https://local.example/apps/contacts/All contacts/' . base64_encode('contact-uid~contacts'),
+			$response->getData()['contact'],
+		);
+	}
+
+	public function testAcceptInviteRejectsMalformedInviteAcceptedPayload(): void {
+		$client = $this->createMock(\OCP\Http\Client\IClient::class);
+		$provider = $this->createMock(\OCP\OCM\IOCMProvider::class);
+		$remoteResponse = $this->createMock(\Psr\Http\Message\ResponseInterface::class);
+		$remoteResponse->method('getBody')->willReturn(json_encode([
+			'userID' => 'bob',
+		]));
+
+		$this->httpClient->method('newClient')->willReturn($client);
+		$this->discovery->method('discover')->willReturn($provider);
+		$provider->method('getCapabilities')->willReturn(['invites']);
+		$this->discovery->method('requestRemoteOcmEndpoint')->willReturn($remoteResponse);
+		$this->invitesService->method('getProviderFQDN')->willReturn('local.example');
+		$this->invitesService->expects($this->never())->method('createNewContact');
+
+		$response = $this->controller->acceptInvite(self::TOKEN, 'remote.example');
+
+		$this->assertSame(Http::STATUS_BAD_GATEWAY, $response->getStatus());
+		$this->assertSame(
+			'Could not accept invite because the remote provider returned an invalid response.',
+			$response->getData()['message'],
+		);
+	}
+
 	public function testDiscoverRejectsBlockedTargets(): void {
 		$response = $this->controller->discover('localhost');
 
@@ -527,6 +637,52 @@ class FederatedInvitesControllerTest extends TestCase {
 		$this->assertSame('remote.example', $body['providerDomain']);
 		$this->assertSame('https://remote.example/index.php/apps/contacts/ocm/invite-accept-dialog', $body['inviteAcceptDialogAbsolute']);
 		$this->assertArrayNotHasKey('raw', $body);
+	}
+
+	public function testWayfUsesIncomingProviderDomainWhenPresent(): void {
+		$this->request->expects($this->once())
+			->method('getParam')
+			->with('providerDomain', '')
+			->willReturn('sender.example');
+		$this->wayfProvider->expects($this->once())
+			->method('getMeshProvidersFromCache')
+			->willReturn(['mesh' => []]);
+		$this->urlGenerator->expects($this->never())->method('getBaseUrl');
+		$this->initialState->expects($this->once())
+			->method('provideInitialState')
+			->with('wayf', $this->callback(static function (array $state): bool {
+				return $state['providerDomain'] === 'sender.example'
+					&& $state['token'] === self::TOKEN
+					&& isset($state['federations']);
+			}));
+
+		$response = $this->controller->wayf(self::TOKEN);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testWayfFallsBackToBaseHostWhenProviderDomainMissing(): void {
+		$this->request->expects($this->once())
+			->method('getParam')
+			->with('providerDomain', '')
+			->willReturn('');
+		$this->wayfProvider->expects($this->once())
+			->method('getMeshProvidersFromCache')
+			->willReturn(['mesh' => []]);
+		$this->urlGenerator->expects($this->once())
+			->method('getBaseUrl')
+			->willReturn('https://receiver.example');
+		$this->initialState->expects($this->once())
+			->method('provideInitialState')
+			->with('wayf', $this->callback(static function (array $state): bool {
+				return $state['providerDomain'] === 'receiver.example'
+					&& $state['token'] === self::TOKEN
+					&& isset($state['federations']);
+			}));
+
+		$response = $this->controller->wayf(self::TOKEN);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
 	public function testAcceptInviteRejectsInvalidProviderTarget(): void {
