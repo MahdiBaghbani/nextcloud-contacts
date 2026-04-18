@@ -11,14 +11,12 @@
 			</div>
 		</div>
 		<VList
-			v-slot="{ item, index }"
+			v-slot="{ item }"
 			ref="scroller"
 			class="contacts-list"
 			:data="filteredList">
 			<OcmInvitesListItem
-				:index="index"
-				:source="item"
-				:reload-bus="reloadBus" />
+				:source="item" />
 		</VList>
 	</AppContentList>
 </template>
@@ -51,15 +49,10 @@ const _default = {
 			type: String,
 			default: '',
 		},
-		reloadBus: {
-			type: Object,
-			required: true,
-		},
 	},
 
 	data() {
 		return {
-			OcmInvitesListItem,
 			query: '',
 		}
 	},
@@ -110,23 +103,23 @@ const _default = {
 		 * @param {string} key the contact unique key
 		 */
 		scrollToInvite(key) {
-			const item = this.$el.querySelector('#' + btoa(key).slice(0, -2))
-
-			// if the item is not visible in the list or barely visible
-			if (!(item && item.getBoundingClientRect().y > 50)) { // header height
-				const index = this.list.findIndex((contact) => contact.key === key)
-				if (index > -1) {
-					this.$refs.scroller.scrollToIndex(index)
-				}
+			const index = this.filteredList.findIndex((invite) => invite.key === key)
+			if (index < 0) {
+				return
 			}
 
-			// if item is a bit out (bottom) of the list, let's just scroll a bit to the top
-			if (item) {
-				const pos = item.getBoundingClientRect().y + this.itemHeight - (this.$el.offsetHeight + 50)
-				if (pos > 0) {
-					const scroller = this.$refs.scroller.$el
-					scroller.scrollToOffset(scroller.scrollTop + pos)
-				}
+			const item = this.$el.querySelector(`#invite-${key}`)
+			if (!item) {
+				this.$refs.scroller?.scrollToIndex(index)
+				return
+			}
+
+			const itemRect = item.getBoundingClientRect()
+			const listRect = this.$el.getBoundingClientRect()
+			const isAbove = itemRect.top < listRect.top + 50 // account for list header
+			const isBelow = itemRect.bottom > listRect.bottom
+			if (isAbove || isBelow) {
+				this.$refs.scroller?.scrollToIndex(index)
 			}
 		},
 
@@ -138,7 +131,7 @@ const _default = {
 		 */
 		matchSearch(invite) {
 			if (this.query.trim() !== '') {
-				return getOcmInviteSearchData(invite).toLowerCase().search(this.query.trim().toLowerCase()) !== -1
+				return getOcmInviteSearchData(invite).toLowerCase().includes(this.query.trim().toLowerCase())
 			}
 			return true
 		},

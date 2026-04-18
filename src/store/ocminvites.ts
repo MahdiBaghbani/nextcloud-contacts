@@ -3,16 +3,12 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+import type { OcmInviteData, OcmInviteEntry } from '../models/ocminvite.ts'
+
 import axios from '@nextcloud/axios'
 import { generateUrl } from '@nextcloud/router'
 import { defineStore } from 'pinia'
-
-import {
-	type OcmInviteData,
-	type OcmInviteEntry,
-
-	toOcmInviteEntry,
-} from '../models/ocminvite.ts'
+import { toOcmInviteEntry } from '../models/ocminvite.ts'
 import logger from '../services/logger.js'
 
 interface SortedEntry {
@@ -39,7 +35,23 @@ interface AttachEmailPayload {
 	message?: string
 }
 
-const sortData = (a: SortedEntry, b: SortedEntry): number => a.key.localeCompare(b.key)
+function getSortValue(value: SortedEntry['value']): string {
+	if (typeof value === 'number' || typeof value === 'boolean') {
+		return String(value)
+	}
+	if (typeof value === 'string') {
+		return value.toLowerCase()
+	}
+	return ''
+}
+
+function sortData(a: SortedEntry, b: SortedEntry): number {
+	const byValue = getSortValue(a.value).localeCompare(getSortValue(b.value), undefined, { numeric: true })
+	if (byValue !== 0) {
+		return byValue
+	}
+	return a.key.localeCompare(b.key)
+}
 
 const useOcmInvitesStore = defineStore('ocminvites', {
 	state: (): OcmInvitesState => ({
@@ -62,7 +74,8 @@ const useOcmInvitesStore = defineStore('ocminvites', {
 		async fetchOcmInvites(): Promise<void> {
 			try {
 				const response = await axios.get(generateUrl('/apps/contacts/ocm/invitations'))
-				this.appendInvites(response.data)
+				const invites = Array.isArray(response.data) ? response.data : []
+				this.replaceInvites(invites)
 				this.sortInvites()
 			} catch (error) {
 				logger.error('Error fetching OCM invites: ' + error)
@@ -77,6 +90,7 @@ const useOcmInvitesStore = defineStore('ocminvites', {
 				this.removeOcmInvite(invite.key)
 			} catch (error) {
 				logger.error('Error deleting OCM invite with token ' + token)
+				throw error
 			}
 		},
 
@@ -84,7 +98,9 @@ const useOcmInvitesStore = defineStore('ocminvites', {
 			const token = invite.token
 			const url = generateUrl('/apps/contacts/ocm/invitations/{token}/resend', { token })
 			try {
-				return await axios.patch(url)
+				const response = await axios.patch(url)
+				await this.fetchOcmInvites()
+				return response
 			} catch (error) {
 				logger.error('Error resending OCM invite with token ' + token)
 				throw error
@@ -100,7 +116,9 @@ const useOcmInvitesStore = defineStore('ocminvites', {
 				ccSender: invite.ccSender || false,
 			}
 			try {
-				return await axios.post(url, payload)
+				const response = await axios.post(url, payload)
+				await this.fetchOcmInvites()
+				return response
 			} catch (error) {
 				logger.error('Error creating a new OCM invite for ' + invite.email)
 				throw error
@@ -131,16 +149,16 @@ const useOcmInvitesStore = defineStore('ocminvites', {
 		 * Stores a fresh batch of raw invite payloads from the API. Skips
 		 * any entry without a token because we cannot key it.
 		 */
-		appendInvites(invites: OcmInviteData[] = []): void {
+		replaceInvites(invites: OcmInviteData[] = []): void {
 			this.ocmInvites = invites.reduce<Record<string, OcmInviteEntry>>((list, raw) => {
 				const entry = toOcmInviteEntry(raw)
 				if (entry) {
 					list[entry.key] = entry
 				} else {
-					console.error('Invalid invite object', raw)
+					logger.error('Invalid invite object received from API', { raw })
 				}
 				return list
-			}, this.ocmInvites)
+			}, {})
 		},
 
 		/**
@@ -171,7 +189,7 @@ const useOcmInvitesStore = defineStore('ocminvites', {
 		updateOcmInvite(raw: OcmInviteData): void {
 			const entry = toOcmInviteEntry(raw)
 			if (!entry) {
-				console.error('Invalid invite object', raw)
+				logger.error('Invalid invite object received from API', { raw })
 				return
 			}
 			this.ocmInvites = { ...this.ocmInvites, [entry.key]: entry }

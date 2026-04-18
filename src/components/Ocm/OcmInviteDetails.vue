@@ -158,6 +158,7 @@
 import { showError, showSuccess } from '@nextcloud/dialogs'
 import { loadState } from '@nextcloud/initial-state'
 import moment from '@nextcloud/moment'
+import { generateUrl } from '@nextcloud/router'
 import {
 	NcModal as Modal,
 	NcAppContentDetails,
@@ -168,8 +169,8 @@ import { mapStores } from 'pinia'
 import IconAccountSwitchOutline from 'vue-material-design-icons/AccountSwitchOutline.vue'
 import ContentCopyIcon from 'vue-material-design-icons/ContentCopy.vue'
 import EmailFastOutlineIcon from 'vue-material-design-icons/EmailFastOutline.vue'
-import useOcmInvitesStore from '../../store/ocminvites.ts'
 import OcmAttachEmailForm from './OcmAttachEmailForm.vue'
+import useOcmInvitesStore from '../../store/ocminvites.ts'
 
 const dateFormat = 'lll'
 
@@ -235,7 +236,10 @@ export default {
 			if (!this.invite) {
 				return ''
 			}
-			return `https://${this.provider}/index.php/apps/contacts/wayf?token=${this.invite.token}`
+			const wayfUrl = new URL(generateUrl('/apps/contacts/wayf'), window.location.origin)
+			wayfUrl.searchParams.set('token', this.invite.token)
+			wayfUrl.searchParams.set('providerDomain', this.provider)
+			return wayfUrl.toString()
 		},
 
 		plainInviteString() {
@@ -301,7 +305,16 @@ export default {
 		},
 
 		async onRevoke() {
-			await this.ocminvitesStore.deleteOcmInvite(this.invite)
+			if (!this.invite) {
+				return
+			}
+			try {
+				await this.ocminvitesStore.deleteOcmInvite(this.invite)
+				showSuccess(this.t('contacts', 'Invite revoked'))
+			} catch (error) {
+				const serverMessage = error?.response?.data?.message
+				showError(serverMessage || this.t('contacts', 'Could not revoke invite'))
+			}
 		},
 
 		openAttachEmailForm() {

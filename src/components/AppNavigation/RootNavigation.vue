@@ -25,8 +25,7 @@
 					name: 'group',
 					params: { selectedGroup: GROUP_ALL_CONTACTS },
 				}"
-				:active="routeState === 'all'"
-				@click="updateRouteState('all')">
+				:active="routeState === 'all'">
 				<template #icon>
 					<IconContactFilled v-if="routeState === 'all'" :size="20" />
 					<IconContact v-else :size="20" />
@@ -48,8 +47,7 @@
 					params: { selectedChart: GROUP_ALL_CONTACTS },
 				}"
 				:active="routeState === 'orgchart'"
-				icon="icon-category-monitoring"
-				@click="updateRouteState('orgchart')" />
+				icon="icon-category-monitoring" />
 
 			<!-- Not grouped group -->
 			<AppNavigationItem
@@ -60,8 +58,7 @@
 					name: 'group',
 					params: { selectedGroup: GROUP_NO_GROUP_CONTACTS },
 				}"
-				:active="routeState === 'notgrouped'"
-				@click="updateRouteState('notgrouped')">
+				:active="routeState === 'notgrouped'">
 				<template #icon>
 					<IconUserFilled v-if="routeState === 'notgrouped'" :size="20" />
 					<IconUser v-else :size="20" />
@@ -82,8 +79,7 @@
 					name: 'group',
 					params: { selectedGroup: GROUP_RECENTLY_CONTACTED },
 				}"
-				:active="routeState === 'recentlycontacted'"
-				@click="updateRouteState('recentlycontacted')">
+				:active="routeState === 'recentlycontacted'">
 				<template #icon>
 					<IconRecentlyContacted :size="20" />
 				</template>
@@ -102,8 +98,7 @@
 				:to="{
 					name: ROUTE_NAME_ALL_OCM_INVITES,
 				}"
-				:active="routeState === 'ocm-invites'"
-				@click="updateRouteState('ocm-invites')">
+				:active="routeState === 'ocm-invites'">
 				<template #icon>
 					<IconAccountSwitchOutline :size="20" />
 				</template>
@@ -144,8 +139,7 @@
 				v-for="group in ellipsisGroupsMenu"
 				:key="group.key"
 				:route-state="routeState"
-				:group="group"
-				@update-route-state="updateRouteState" />
+				:group="group" />
 
 			<template v-if="isCirclesEnabled">
 				<!-- Toggle groups ellipsis -->
@@ -180,8 +174,7 @@
 					<CircleNavigationItem
 						v-for="circle in ellipsisCirclesMenu"
 						:key="circle.key"
-						:circle="circle"
-						@click="updateRouteState(`circle:${circle.id}`)" />
+						:circle="circle" />
 
 					<!-- Toggle circles ellipsis -->
 					<AppNavigationItem
@@ -456,7 +449,44 @@ export default {
 		...mapStores(useOcmInvitesStore, useUserGroupStore),
 	},
 
+	watch: {
+		$route: {
+			immediate: true,
+			handler(route) {
+				this.routeState = this.getRouteStateFromRoute(route)
+			},
+		},
+	},
+
 	methods: {
+		getRouteStateFromRoute(route) {
+			const routeName = route?.name
+			if (routeName === ROUTE_NAME_ALL_OCM_INVITES || routeName === 'ocm_invite') {
+				return 'ocm-invites'
+			}
+			if (routeName === 'chart') {
+				return 'orgchart'
+			}
+			if (routeName === 'circle' && route?.params?.selectedCircle) {
+				return `circle:${route.params.selectedCircle}`
+			}
+			if (routeName === 'user_group' && route?.params?.selectedUserGroup) {
+				return `circle:${route.params.selectedUserGroup}`
+			}
+
+			const selectedGroup = route?.params?.selectedGroup
+			if (selectedGroup === GROUP_NO_GROUP_CONTACTS) {
+				return 'notgrouped'
+			}
+			if (selectedGroup === GROUP_RECENTLY_CONTACTED) {
+				return 'recentlycontacted'
+			}
+			if (typeof selectedGroup === 'string' && selectedGroup !== '' && selectedGroup !== GROUP_ALL_CONTACTS) {
+				return `group:${selectedGroup.replace(' ', '_')}`
+			}
+			return 'all'
+		},
+
 		toggleNewGroupMenu() {
 			this.isNewGroupMenuOpen = !this.isNewGroupMenuOpen
 		},
@@ -541,10 +571,6 @@ export default {
 		 */
 		showContactsSettings() {
 			this.showSettings = true
-		},
-
-		updateRouteState(state) {
-			this.routeState = state
 		},
 	},
 }

@@ -97,8 +97,9 @@ export default {
 					if (!token) {
 						return null
 					}
-					// Provider from query param or URL host
-					const provider = url.searchParams.get('provider') || url.host
+					// Provider from query param (`providerDomain` is authoritative),
+					// then fallback to legacy `provider`, then URL host.
+					const provider = url.searchParams.get('providerDomain') || url.searchParams.get('provider') || url.host
 					if (!provider) {
 						return null
 					}

@@ -176,6 +176,7 @@ import {
 	NcButton,
 } from '@nextcloud/vue'
 import ICAL from 'ical.js'
+import { mapStores } from 'pinia'
 import IconAccountArrowDownOutline from 'vue-material-design-icons/AccountArrowDownOutline.vue'
 import IconAccountSwitchOutline from 'vue-material-design-icons/AccountSwitchOutline.vue'
 import IconCancel from 'vue-material-design-icons/Cancel.vue'
@@ -197,8 +198,6 @@ import RouterMixin from '../mixins/RouterMixin.js'
 import { GROUP_ALL_CONTACTS, GROUP_ALL_OCM_INVITES, GROUP_NO_GROUP_CONTACTS, ROUTE_CIRCLE, ROUTE_NAME_ALL_OCM_INVITES, ROUTE_NAME_INVITE_ACCEPT_DIALOG, ROUTE_NAME_OCM_INVITE, ROUTE_USER_GROUP } from '../models/constants.ts'
 import Contact from '../models/contact.js'
 import rfcProps from '../models/rfcProps.js'
-import { mapStores } from 'pinia'
-
 import client from '../services/cdav.js'
 import isCirclesEnabled from '../services/isCirclesEnabled.js'
 import isOcmInvitesEnabled from '../services/isOcmInvitesEnabled.js'
@@ -421,6 +420,12 @@ const _default = {
 				}
 			}
 		},
+
+		invitesList() {
+			if (!this.isMobile && this.$route.name === ROUTE_NAME_ALL_OCM_INVITES) {
+				this.selectFirstOcmInviteIfNone()
+			}
+		},
 	},
 
 	mounted() {
@@ -456,13 +461,12 @@ const _default = {
 						this.fetchContacts()
 					}
 					if (isOcmInvitesEnabled) {
-						// set selected group in case of invite routes to keep the Contact component working properly
-						if (this.$route.meta.selectedGroup === GROUP_ALL_OCM_INVITES) {
-							this.selectedGroup = GROUP_ALL_OCM_INVITES
-						}
 						// get OCM invites
 						this.ocminvitesStore.fetchOcmInvites().then(() => {
 							this.loadingInvites = false
+							if (this.$route.name === ROUTE_NAME_ALL_OCM_INVITES) {
+								this.selectFirstOcmInviteIfNone()
+							}
 						})
 					}
 				})
@@ -612,7 +616,7 @@ const _default = {
 		 */
 		selectFirstContactIfNone() {
 			// Do not redirect if pending import
-			if (this.$route.name === 'import') {
+			if (this.$route.name === 'import' || this.$route.name === ROUTE_NAME_INVITE_ACCEPT_DIALOG) {
 				return
 			}
 
@@ -669,6 +673,10 @@ const _default = {
 						params: {
 							selectedInvite: Object.values(this.invitesList)[0].key,
 						},
+					})
+				} else if (this.selectedInvite !== undefined) {
+					this.$router.push({
+						name: ROUTE_NAME_ALL_OCM_INVITES,
 					})
 				}
 			}

@@ -119,6 +119,38 @@ describe('ocminvites store', () => {
 		})
 	})
 
+	describe('fetchOcmInvites', () => {
+		test('replaces existing invite map with latest server payload', async () => {
+			axios.get.mockResolvedValue({
+				data: [flatInvitePayload({ token: 'fresh-token', recipientEmail: 'fresh@example.org' })],
+			})
+
+			const store = useOcmInvitesStore()
+			store.ocmInvites = {
+				'stale-token': toOcmInviteEntry(flatInvitePayload({ token: 'stale-token', recipientEmail: 'stale@example.org' })),
+			}
+
+			await store.fetchOcmInvites()
+
+			expect(Object.keys(store.ocmInvites)).toEqual(['fresh-token'])
+			expect(store.ocmInvites['fresh-token'].recipientEmail).toBe('fresh@example.org')
+		})
+
+		test('sorts by recipientEmail value, not token key', async () => {
+			axios.get.mockResolvedValue({
+				data: [
+					flatInvitePayload({ token: 'z-token', recipientEmail: 'zeta@example.org' }),
+					flatInvitePayload({ token: 'a-token', recipientEmail: 'alpha@example.org' }),
+				],
+			})
+
+			const store = useOcmInvitesStore()
+			await store.fetchOcmInvites()
+
+			expect(store.sortedOcmInvites.map(entry => entry.key)).toEqual(['a-token', 'z-token'])
+		})
+	})
+
 	describe('updateOcmInvite action', () => {
 		test('replaces the invite for the matching token without dropping others', () => {
 			const store = useOcmInvitesStore()
@@ -171,6 +203,43 @@ describe('ocminvites store', () => {
 
 			expect(store.sortedOcmInvites.map(i => i.key)).toEqual(['a', 'b'])
 			expect(store.ocmInvites).toEqual({ a, b })
+		})
+	})
+
+	describe('deleteOcmInvite', () => {
+		test('throws when revoke request fails', async () => {
+			const failure = new Error('delete failed')
+			axios.delete.mockRejectedValue(failure)
+
+			const store = useOcmInvitesStore()
+			const invite = toOcmInviteEntry(flatInvitePayload())
+			await expect(store.deleteOcmInvite(invite)).rejects.toBe(failure)
+		})
+	})
+
+	describe('create/resend refresh', () => {
+		test('newOcmInvite refreshes invite list after create', async () => {
+			axios.post.mockResolvedValue({ data: { invite: '/invite/link' } })
+			axios.get.mockResolvedValue({ data: [flatInvitePayload({ token: 'new-token' })] })
+
+			const store = useOcmInvitesStore()
+			await store.newOcmInvite({ email: 'recipient@example.org', message: '', note: '' })
+
+			expect(axios.post).toHaveBeenCalledTimes(1)
+			expect(axios.get).toHaveBeenCalledTimes(1)
+			expect(store.ocmInvites['new-token']).toBeDefined()
+		})
+
+		test('resendOcmInvite refreshes invite list after resend', async () => {
+			axios.patch.mockResolvedValue({ data: { invite: '/invite/link' } })
+			axios.get.mockResolvedValue({ data: [flatInvitePayload({ token: TOKEN })] })
+
+			const store = useOcmInvitesStore()
+			const invite = toOcmInviteEntry(flatInvitePayload())
+			await store.resendOcmInvite(invite)
+
+			expect(axios.patch).toHaveBeenCalledTimes(1)
+			expect(axios.get).toHaveBeenCalledTimes(1)
 		})
 	})
 })

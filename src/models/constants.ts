@@ -30,7 +30,7 @@ export const ROUTE_CIRCLE = 'circle'
 export const ROUTE_CHART = 'chart'
 export const ROUTE_USER_GROUP = 'user_group'
 
-const acceptInviteDialogUrl = loadState('contacts', 'acceptInviteDialogUrl', '')
+const acceptInviteDialogUrl = loadState('contacts', 'acceptInviteDialogUrl', '/ocm/invite-accept-dialog')
 export const ROUTE_INVITE_ACCEPT_DIALOG = acceptInviteDialogUrl
 export const ROUTE_NAME_INVITE_ACCEPT_DIALOG = 'invite_accept_dialog'
 export const ROUTE_ALL_OCM_INVITES = 'ocm-invites'

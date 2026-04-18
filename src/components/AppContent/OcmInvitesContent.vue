@@ -26,9 +26,7 @@
 			<OcmInvitesList
 				:list="invitesList"
 				:invites="invites"
-				:search-query="searchQuery"
-				:reload-bus="reloadBus"
-				@on-revoke="onRevoke" />
+				:search-query="searchQuery" />
 		</template>
 
 		<!-- OCM invite details -->
@@ -37,13 +35,11 @@
 </template>
 
 <script>
-import { generateUrl } from '@nextcloud/router'
 import {
 	NcAppContent as AppContent,
 	NcEmptyContent as EmptyContent,
 	NcLoadingIcon as IconLoading,
 } from '@nextcloud/vue'
-import mitt from 'mitt'
 import { mapStores } from 'pinia'
 import IconAccountSwitchOutline from 'vue-material-design-icons/AccountSwitchOutline.vue'
 import OcmInviteDetails from '../Ocm/OcmInviteDetails.vue'
@@ -80,7 +76,6 @@ export default {
 	data() {
 		return {
 			searchQuery: '',
-			reloadBus: mitt(),
 		}
 	},
 

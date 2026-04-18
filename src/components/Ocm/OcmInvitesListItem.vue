@@ -29,17 +29,7 @@ export default {
 	},
 
 	props: {
-		index: {
-			type: Number,
-			required: true,
-		},
-
 		source: {
-			type: Object,
-			required: true,
-		},
-
-		reloadBus: {
 			type: Object,
 			required: true,
 		},
@@ -61,9 +51,6 @@ export default {
 		displayName() {
 			return getOcmInviteDisplayName(this.source)
 		},
-	},
-
-	methods: {
 	},
 }
 </script>

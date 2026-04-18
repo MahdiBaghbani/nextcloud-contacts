@@ -3,14 +3,14 @@
 		<template #default>
 			<div class="wayf-body">
 				<div v-if="token !== ''">
-					<h2>Providers</h2>
-					<p>Where are you from?</p>
-					<p>Please tell us your Cloud Provider.</p>
+					<h2>{{ t('contacts', 'Providers') }}</h2>
+					<p>{{ t('contacts', 'Where are you from?') }}</p>
+					<p>{{ t('contacts', 'Please tell us your cloud provider.') }}</p>
 					<div v-if="federations">
 						<NcTextField
 							id="wayf-search"
 							v-model="query"
-							label="Type to search"
+							:label="t('contacts', 'Type to search')"
 							type="search"
 							name="search">
 							<template #icon>
@@ -25,13 +25,7 @@
 								<NcListItem
 									v-for="p in filteredBy(providers)"
 									:key="p.fqdn"
-									:href="
-										p.inviteAcceptDialog
-											+ '?token='
-											+ token
-											+ '&providerDomain='
-											+ providerDomain
-									"
+									:href="providerInviteUrl(p)"
 									:name="p.name"
 									one-line>
 									<template #icon>
@@ -46,7 +40,7 @@
 					<NcTextField
 						id="wayf-manual"
 						v-model="manualProvider"
-						label="No providers? No problem! Enter provider manually."
+						:label="t('contacts', 'No provider listed? Enter one manually.')"
 						type="text"
 						name="manual"
 						@keyup.enter="goToManualProvider">
@@ -56,7 +50,7 @@
 					</NcTextField>
 				</div>
 				<div v-else>
-					<p>You need a token for this feature to work.</p>
+					<p>{{ t('contacts', 'You need a token for this feature to work.') }}</p>
 				</div>
 			</div>
 		</template>
@@ -65,6 +59,7 @@
 
 <script>
 import axios from '@nextcloud/axios'
+import { showError } from '@nextcloud/dialogs'
 import { generateUrl } from '@nextcloud/router'
 import {
 	NcGuestContent,
@@ -92,7 +87,7 @@ export default {
 		token: { type: String, default: '' },
 	},
 
-	data: () => ({ query: '' }),
+	data: () => ({ query: '', manualProvider: '' }),
 	methods: {
 		async discoverProvider(base) {
 			const resp = await axios.get(generateUrl('/apps/contacts/discover'), {
@@ -114,6 +109,25 @@ export default {
 			return u.toString()
 		},
 
+		providerInviteUrl(providerEntry) {
+			const source = providerEntry?.inviteAcceptDialog || ''
+			if (!source) {
+				return '#'
+			}
+			try {
+				const url = new URL(source, window.location.origin)
+				if (this.providerDomain) {
+					url.searchParams.set('providerDomain', this.providerDomain)
+				}
+				if (this.token) {
+					url.searchParams.set('token', this.token)
+				}
+				return url.toString()
+			} catch (error) {
+				return '#'
+			}
+		},
+
 		filteredBy(providers) {
 			const s = (this.query || '').toLowerCase()
 			return providers.filter((p) => p.name.toLowerCase().includes(s) || p.fqdn.toLowerCase().includes(s))
@@ -127,9 +141,8 @@ export default {
 			try {
 				const target = await this.discoverProvider(input)
 				window.location.href = target
-			} catch (e) {
-				// TODO: handle error and show error dialog to user
-				console.error(e)
+			} catch (error) {
+				showError(this.t('contacts', 'Could not discover that provider. Check the address and try again.'))
 			}
 		},
 	},
