@@ -27,6 +27,7 @@ class ConfigLexicon implements ILexicon {
 	public const OCM_INVITES_OPTIONAL_MAIL = 'ocm_invites_optional_mail';
 	public const OCM_INVITES_CC_SENDER = 'ocm_invites_cc_sender';
 	public const OCM_INVITES_ENCODED_COPY_BUTTON = 'ocm_invites_encoded_copy_button';
+	public const OCM_INVITES_DISABLE_SSRF_GUARD = 'ocm_invites_disable_ssrf_guard';
 
 	public function getStrictness(): Strictness {
 		return Strictness::NOTICE;
@@ -60,6 +61,13 @@ class ConfigLexicon implements ILexicon {
 				ValueType::BOOL,
 				defaultRaw: false,
 				definition: 'Whether the invite email "Open invite" button uses the encoded WAYF URL instead of the raw token.',
+				lazy: true,
+			),
+			new Entry(
+				self::OCM_INVITES_DISABLE_SSRF_GUARD,
+				ValueType::BOOL,
+				defaultRaw: false,
+				definition: 'Unsafe development override that disables private-host and localhost checks for OCM invite discovery.',
 				lazy: true,
 			),
 		];

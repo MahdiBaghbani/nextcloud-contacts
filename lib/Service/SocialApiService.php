@@ -13,10 +13,12 @@ use Exception;
 use OCA\Contacts\AppInfo\Application;
 use OCA\Contacts\Exception\ContactExistsException;
 use OCA\Contacts\Service\Social\CompositeSocialProvider;
+use OCA\DAV\CardDAV\CardDavBackend;
 use OCA\DAV\CardDAV\ContactsManager;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\AppFramework\Utility\ITimeFactory;
+use OCP\Constants;
 use OCP\Contacts\IManager;
 use OCP\Http\Client\IClientService;
 use OCP\IAddressBook;
@@ -259,21 +261,9 @@ class SocialApiService {
 				throw new ContactExistsException('Contact with cloud id ' . $cloudId . ' already exists.');
 			}
 
-			/** @var \OCP\IAddressBook */
-			$addressBook = null;
-			$addressBooks = $this->manager->getUserAddressBooks();
-			foreach ($addressBooks as $_addressBook) {
-				// TODO properly resolve the correct addressbook to add the contact to
-				// Resolve by uri seems a bit risky ... can we be sure the uri equals 'contacts' ?
-				// Perhaps add to the first 'non system' addressbook we find ?
-				// (although we still would like to add to the 'Contacts' addressbook I guess)
-				if ($_addressBook->getUri() === 'contacts') {
-					$addressBook = $_addressBook;
-					break;
-				}
-			}
+			$addressBook = $this->pickAddressBookForContactCreation($this->manager->getUserAddressBooks());
 			if (!isset($addressBook)) {
-				$this->logger->error('Contacts address book not found. Unable to add the new contact on invite accepted.', ['app' => Application::APP_ID]);
+				$this->logger->error('No suitable address book found. Unable to add the new contact on invite accepted.', ['app' => Application::APP_ID]);
 				return null;
 			}
 
@@ -285,6 +275,7 @@ class SocialApiService {
 				],
 				$addressBook->getKey()
 			);
+			$newContact['ADDRESSBOOK_URI'] = $addressBook->getUri();
 			return $newContact;
 		} catch (ContactExistsException $e) {
 			throw $e;
@@ -296,7 +287,7 @@ class SocialApiService {
 
 	/**
 	 * Creates a federated contact (no thrown exceptions; null on duplicate or
-	 * when the user has no 'contacts' address book).
+	 * when no suitable writable address book exists).
 	 *
 	 * Used by the FederatedInviteAcceptedListener on the inviter side, where
 	 * there is no user session and the inviter UID must be passed explicitly.
@@ -307,8 +298,8 @@ class SocialApiService {
 	 * @param string $userId the uid of the local (inviter) user
 	 *
 	 * @return array|null the created contact array, or null if a contact with
-	 *                    that cloud id already exists or the inviter has no
-	 *                    'contacts' address book
+	 *                    that cloud id already exists or there is no suitable
+	 *                    writable address book for the inviter
 	 */
 	public function createFederatedContact(string $cloudId, string $email, string $name, string $userId): ?array {
 		try {
@@ -321,17 +312,9 @@ class SocialApiService {
 				return null;
 			}
 
-			/** @var \OCP\IAddressBook|null $addressBook */
-			$addressBook = null;
-			$addressBooks = $this->manager->getUserAddressBooks();
-			foreach ($addressBooks as $_addressBook) {
-				if ($_addressBook->getUri() === 'contacts') {
-					$addressBook = $_addressBook;
-					break;
-				}
-			}
+			$addressBook = $this->pickAddressBookForContactCreation($this->manager->getUserAddressBooks());
 			if (!isset($addressBook)) {
-				$this->logger->error('Contacts address book not found. Unable to add the new contact on invite accepted.', ['app' => Application::APP_ID]);
+				$this->logger->error('No suitable address book found. Unable to add the new contact on invite accepted.', ['app' => Application::APP_ID]);
 				return null;
 			}
 
@@ -347,6 +330,30 @@ class SocialApiService {
 		} catch (Exception $e) {
 			$this->logger->error('An exception occurred creating a federated contact: ' . $e->getTraceAsString(), ['app' => Application::APP_ID]);
 		}
+		return null;
+	}
+
+	/**
+	 * Pick a destination book using the same order as ImportController:
+	 * personal address book first, then first writable non-shared.
+	 */
+	private function pickAddressBookForContactCreation(array $addressBooks): ?IAddressBook {
+		foreach ($addressBooks as $addressBook) {
+			if ($addressBook->getUri() === CardDavBackend::PERSONAL_ADDRESSBOOK_URI) {
+				return $addressBook;
+			}
+		}
+
+		foreach ($addressBooks as $addressBook) {
+			if ($addressBook->isShared()) {
+				continue;
+			}
+			if (($addressBook->getPermissions() & Constants::PERMISSION_CREATE) === 0) {
+				continue;
+			}
+			return $addressBook;
+		}
+
 		return null;
 	}
 

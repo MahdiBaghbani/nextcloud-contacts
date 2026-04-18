@@ -18,7 +18,6 @@ use OCA\Contacts\Service\FederatedInvitesService;
 use OCA\Contacts\Service\GroupSharingService;
 use OCA\Contacts\Service\SocialApiService;
 use OCA\Contacts\WayfProvider;
-use OCA\DAV\CardDAV\CardDavBackend;
 use OCA\FederatedFileSharing\AddressHandler;
 use OCP\App\IAppManager;
 use OCP\AppFramework\Db\DoesNotExistException;
@@ -64,7 +63,6 @@ class FederatedInvitesController extends PageController {
 	public function __construct(
 		IRequest $request,
 		private AddressHandler $addressHandler,
-		private CardDavBackend $cardDavBackend,
 		private Defaults $defaults,
 		private FederatedInviteMapper $federatedInviteMapper,
 		private FederatedInvitesService $federatedInvitesService,
@@ -833,7 +831,10 @@ class FederatedInvitesController extends PageController {
 		}
 
 		$host = strtolower((string)$parts['host']);
-		if ($host === '' || $this->isBlockedDiscoveryHost($host)) {
+		if ($host === '') {
+			return null;
+		}
+		if (!$this->federatedInvitesService->isSsrfGuardDisabled() && $this->isBlockedDiscoveryHost($host)) {
 			return null;
 		}
 

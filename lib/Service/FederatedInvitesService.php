@@ -60,6 +60,10 @@ class FederatedInvitesService {
 		return $this->appConfig->getValueBool(Application::APP_ID, ConfigLexicon::OCM_INVITES_ENCODED_COPY_BUTTON);
 	}
 
+	public function isSsrfGuardDisabled(): bool {
+		return $this->appConfig->getValueBool(Application::APP_ID, ConfigLexicon::OCM_INVITES_DISABLE_SSRF_GUARD);
+	}
+
 	/**
 	 * The set of admin-toggleable OCM bool keys. Used to gate writes from the
 	 * admin settings page so callers cannot persist arbitrary keys.
@@ -68,6 +72,7 @@ class FederatedInvitesService {
 		ConfigLexicon::OCM_INVITES_OPTIONAL_MAIL,
 		ConfigLexicon::OCM_INVITES_CC_SENDER,
 		ConfigLexicon::OCM_INVITES_ENCODED_COPY_BUTTON,
+		ConfigLexicon::OCM_INVITES_DISABLE_SSRF_GUARD,
 	];
 
 	/**
@@ -228,7 +233,8 @@ class FederatedInvitesService {
 	 * @param ?string userId id of the user for which to create the new contact.
 	 * If null, this is the current logged-in user.
 	 *
-	 * @return string the ref of the new contact in the form 'contactURI~PERSONAL_ADDRESSBOOK_URI'
+	 * @return string the ref of the new contact in the form
+	 *                'contactURI~addressBookUri'
 	 * @throws ContactExistsException
 	 */
 	public function createNewContact(string $cloudId, string $email, string $name, ?string $userId): ?string {
@@ -248,7 +254,11 @@ class FederatedInvitesService {
 			return null;
 		}
 		$this->logger->info('Created new contact with UID: ' . $newContact['UID'] . ' for user with UID: ' . $localUserId, ['app' => Application::APP_ID]);
-		$contactRef = $newContact['UID'] . '~' . CardDavBackend::PERSONAL_ADDRESSBOOK_URI;
+		$addressBookUri = CardDavBackend::PERSONAL_ADDRESSBOOK_URI;
+		if (isset($newContact['ADDRESSBOOK_URI']) && is_string($newContact['ADDRESSBOOK_URI']) && $newContact['ADDRESSBOOK_URI'] !== '') {
+			$addressBookUri = $newContact['ADDRESSBOOK_URI'];
+		}
+		$contactRef = $newContact['UID'] . '~' . $addressBookUri;
 		return $contactRef;
 	}
 }

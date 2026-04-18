@@ -31,7 +31,7 @@ class FederatedInviteMapper extends QBMapper {
 	public function findByToken(string $token): FederatedInvite {
 		$qb = $this->db->getQueryBuilder();
 		$qb->select('*')
-			->from('federated_invites')
+			->from(self::TABLE_NAME)
 			->where($qb->expr()->eq('token', $qb->createNamedParameter($token)));
 		return $this->findEntity($qb);
 	}

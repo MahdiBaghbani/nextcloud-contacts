@@ -14,6 +14,7 @@ use OCA\Contacts\Db\FederatedInvite;
 use OCA\Contacts\Db\FederatedInviteMapper;
 use OCA\Contacts\Service\FederatedInvitesService;
 use OCA\Contacts\Service\SocialApiService;
+use OCA\DAV\CardDAV\CardDavBackend;
 use OCA\FederatedFileSharing\AddressHandler;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\JSONResponse;
@@ -178,6 +179,55 @@ class FederatedInvitesServiceTest extends TestCase {
 		$result = $this->federatedInvitesService->setOcmInviteBoolSetting('ocm_invites_arbitrary_unknown_key', true);
 
 		$this->assertFalse($result);
+	}
+
+	public function testIsSsrfGuardDisabledReadsConfigToggle(): void {
+		$this->appConfig->expects(self::once())
+			->method('getValueBool')
+			->with(Application::APP_ID, 'ocm_invites_disable_ssrf_guard')
+			->willReturn(true);
+
+		$this->assertTrue($this->federatedInvitesService->isSsrfGuardDisabled());
+	}
+
+	public function testCreateNewContactUsesReturnedAddressBookUriInContactRef(): void {
+		$this->socialApiService->expects(self::once())
+			->method('createContact')
+			->with('remote@example.org', 'remote@example.org', 'Remote User', 'sender')
+			->willReturn([
+				'UID' => 'new-contact-uid',
+				'ADDRESSBOOK_URI' => 'work',
+			]);
+
+		$result = $this->federatedInvitesService->createNewContact(
+			'remote@example.org',
+			'remote@example.org',
+			'Remote User',
+			'sender',
+		);
+
+		$this->assertSame('new-contact-uid~work', $result);
+	}
+
+	public function testCreateNewContactFallsBackToPersonalAddressBookUri(): void {
+		$this->socialApiService->expects(self::once())
+			->method('createContact')
+			->with('remote@example.org', 'remote@example.org', 'Remote User', 'sender')
+			->willReturn([
+				'UID' => 'new-contact-uid',
+			]);
+
+		$result = $this->federatedInvitesService->createNewContact(
+			'remote@example.org',
+			'remote@example.org',
+			'Remote User',
+			'sender',
+		);
+
+		$this->assertSame(
+			'new-contact-uid~' . CardDavBackend::PERSONAL_ADDRESSBOOK_URI,
+			$result,
+		);
 	}
 
 	public function testSetOcmInviteBoolSettingCoversEachAllowedKey(): void {

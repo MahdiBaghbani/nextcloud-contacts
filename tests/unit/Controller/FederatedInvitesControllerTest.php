@@ -17,7 +17,6 @@ use OCA\Contacts\Service\FederatedInvitesService;
 use OCA\Contacts\Service\GroupSharingService;
 use OCA\Contacts\Service\SocialApiService;
 use OCA\Contacts\WayfProvider;
-use OCA\DAV\CardDAV\CardDavBackend;
 use OCA\FederatedFileSharing\AddressHandler;
 use OCP\App\IAppManager;
 use OCP\AppFramework\Db\DoesNotExistException;
@@ -49,7 +48,6 @@ class FederatedInvitesControllerTest extends TestCase {
 
 	private IRequest|MockObject $request;
 	private AddressHandler|MockObject $addressHandler;
-	private CardDavBackend|MockObject $cardDavBackend;
 	private Defaults|MockObject $defaults;
 	private FederatedInviteMapper|MockObject $mapper;
 	private FederatedInvitesService|MockObject $invitesService;
@@ -77,7 +75,6 @@ class FederatedInvitesControllerTest extends TestCase {
 
 		$this->request = $this->createMock(IRequest::class);
 		$this->addressHandler = $this->createMock(AddressHandler::class);
-		$this->cardDavBackend = $this->createMock(CardDavBackend::class);
 		$this->defaults = $this->createMock(Defaults::class);
 		$this->mapper = $this->createMock(FederatedInviteMapper::class);
 		$this->invitesService = $this->createMock(FederatedInvitesService::class);
@@ -111,7 +108,6 @@ class FederatedInvitesControllerTest extends TestCase {
 		$this->controller = new FederatedInvitesController(
 			$this->request,
 			$this->addressHandler,
-			$this->cardDavBackend,
 			$this->defaults,
 			$this->mapper,
 			$this->invitesService,
@@ -425,6 +421,24 @@ class FederatedInvitesControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 		$this->assertSame('invalid base', $response->getData()['error']);
+	}
+
+	public function testDiscoverAllowsBlockedTargetsWhenSsrfGuardDisabled(): void {
+		$provider = $this->createMock(\OCP\OCM\ICapabilityAwareOCMProvider::class);
+		$provider->method('getInviteAcceptDialog')->willReturn('/index.php/apps/contacts/ocm/invite-accept-dialog');
+
+		$this->invitesService->expects($this->atLeastOnce())
+			->method('isSsrfGuardDisabled')
+			->willReturn(true);
+		$this->discovery->expects($this->once())
+			->method('discover')
+			->with('https://localhost')
+			->willReturn($provider);
+
+		$response = $this->controller->discover('localhost');
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame('https://localhost', $response->getData()['base']);
 	}
 
 	public function testDiscoverUsesFallbackDialogAndOmitsRawPayload(): void {

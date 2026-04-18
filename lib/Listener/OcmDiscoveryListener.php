@@ -16,6 +16,7 @@ use OCP\EventDispatcher\IEventListener;
 use OCP\IAppConfig;
 use OCP\IURLGenerator;
 use OCP\OCM\Events\LocalOCMDiscoveryEvent;
+use Psr\Log\LoggerInterface;
 use Throwable;
 
 /** @template-implements IEventListener<LocalOCMDiscoveryEvent> */
@@ -24,6 +25,7 @@ class OcmDiscoveryListener implements IEventListener {
 	public function __construct(
 		private IAppConfig $appConfig,
 		private IURLGenerator $urlGenerator,
+		private LoggerInterface $logger,
 	) {
 	}
 
@@ -45,12 +47,21 @@ class OcmDiscoveryListener implements IEventListener {
 
 		$inviteAcceptDialog = trim($this->appConfig->getValueString('core', ConfigLexicon::OCM_INVITE_ACCEPT_DIALOG));
 		if ($inviteAcceptDialog === '') {
+			$this->logger->warning('OCM invites are enabled but invite accept dialog route is empty', [
+				'app' => Application::APP_ID,
+				'routeConfigKey' => ConfigLexicon::OCM_INVITE_ACCEPT_DIALOG,
+			]);
 			return;
 		}
 
 		try {
 			$absoluteDialogUrl = $this->urlGenerator->linkToRouteAbsolute($inviteAcceptDialog);
-		} catch (Throwable) {
+		} catch (Throwable $e) {
+			$this->logger->warning('OCM invites are enabled but invite accept dialog route cannot be resolved', [
+				'app' => Application::APP_ID,
+				'route' => $inviteAcceptDialog,
+				'exception' => $e,
+			]);
 			return;
 		}
 
