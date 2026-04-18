@@ -1,3 +1,8 @@
+<!--
+  - SPDX-FileCopyrightText: 2025 Nextcloud GmbH and Nextcloud contributors
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+
 <template>
 	<div class="ocm_manual_form">
 		<h5>
@@ -60,7 +65,7 @@ export default {
 		},
 	},
 
-	emits: ['accept', 'cancel', 'parse-error'],
+	emits: ['accept', 'cancel'],
 	data() {
 		return {
 			invite: '',
@@ -139,7 +144,6 @@ export default {
 				this.$emit('accept', { provider, token })
 			} catch (e) {
 				this.error = this.t('contacts', 'This invite does not look valid. Check that you copied it completely or ask the sender to generate a new one.')
-				this.$emit('parse-error', { message: this.error })
 			}
 		},
 

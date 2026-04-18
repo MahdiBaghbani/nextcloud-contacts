@@ -111,7 +111,6 @@
 			:name="t('contacts', 'Send invite via email')"
 			:no-close="submittingAttachEmail">
 			<OcmAttachEmailForm
-				:invite="invite"
 				:loading="submittingAttachEmail"
 				@submit="onAttachEmailSubmit"
 				@cancel="closeAttachEmailForm" />

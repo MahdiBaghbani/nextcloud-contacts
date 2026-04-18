@@ -69,11 +69,6 @@ export default {
 	},
 
 	props: {
-		invite: {
-			type: Object,
-			required: true,
-		},
-
 		loading: {
 			type: Boolean,
 			default: false,
