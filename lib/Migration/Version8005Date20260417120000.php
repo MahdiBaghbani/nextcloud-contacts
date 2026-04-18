@@ -12,7 +12,6 @@ namespace OCA\Contacts\Migration;
 use Closure;
 use OCP\DB\ISchemaWrapper;
 use OCP\DB\QueryBuilder\IQueryBuilder;
-use OCP\DB\Types;
 use OCP\IDBConnection;
 use OCP\Migration\Attributes\ModifyColumn;
 use OCP\Migration\IOutput;
