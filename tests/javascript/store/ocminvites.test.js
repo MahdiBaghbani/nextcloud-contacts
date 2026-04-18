@@ -134,6 +134,8 @@ describe('ocminvites store', () => {
 
 			expect(Object.keys(store.ocmInvites)).toEqual(['fresh-token'])
 			expect(store.ocmInvites['fresh-token'].recipientEmail).toBe('fresh@example.org')
+			expect(store.inviteListStatus).toBe('success')
+			expect(store.inviteListError).toBeNull()
 		})
 
 		test('sorts by recipientEmail value, not token key', async () => {
@@ -148,6 +150,29 @@ describe('ocminvites store', () => {
 			await store.fetchOcmInvites()
 
 			expect(store.sortedOcmInvites.map(entry => entry.key)).toEqual(['a-token', 'z-token'])
+			expect(store.inviteListStatus).toBe('success')
+			expect(store.inviteListError).toBeNull()
+		})
+
+		test('rethrows and sets error state when request fails', async () => {
+			const failure = new Error('network down')
+			axios.get.mockRejectedValue(failure)
+
+			const store = useOcmInvitesStore()
+			await expect(store.fetchOcmInvites()).rejects.toBe(failure)
+
+			expect(store.inviteListStatus).toBe('error')
+			expect(store.inviteListError).toContain('network down')
+		})
+
+		test('rejects malformed payloads and sets error state', async () => {
+			axios.get.mockResolvedValue({ data: { invalid: true } })
+
+			const store = useOcmInvitesStore()
+			await expect(store.fetchOcmInvites()).rejects.toThrow('Invalid invite list payload from server')
+
+			expect(store.inviteListStatus).toBe('error')
+			expect(store.inviteListError).toBe('Invalid invite list payload from server')
 		})
 	})
 
@@ -240,6 +265,29 @@ describe('ocminvites store', () => {
 
 			expect(axios.patch).toHaveBeenCalledTimes(1)
 			expect(axios.get).toHaveBeenCalledTimes(1)
+		})
+
+		test('newOcmInvite rejects when refresh fetch fails', async () => {
+			const failure = new Error('refresh failed')
+			axios.post.mockResolvedValue({ data: { invite: '/invite/link' } })
+			axios.get.mockRejectedValue(failure)
+
+			const store = useOcmInvitesStore()
+			await expect(store.newOcmInvite({ email: 'recipient@example.org', message: '', note: '' })).rejects.toBe(failure)
+
+			expect(store.inviteListStatus).toBe('error')
+		})
+
+		test('resendOcmInvite rejects when refresh fetch fails', async () => {
+			const failure = new Error('refresh failed')
+			axios.patch.mockResolvedValue({ data: { invite: '/invite/link' } })
+			axios.get.mockRejectedValue(failure)
+
+			const store = useOcmInvitesStore()
+			const invite = toOcmInviteEntry(flatInvitePayload())
+			await expect(store.resendOcmInvite(invite)).rejects.toBe(failure)
+
+			expect(store.inviteListStatus).toBe('error')
 		})
 	})
 })

@@ -10,17 +10,10 @@ namespace OCA\Contacts\Service;
 use Exception;
 use OCA\Contacts\AppInfo\Application;
 use OCA\Contacts\ConfigLexicon;
-use OCA\Contacts\Db\FederatedInviteMapper;
 use OCA\Contacts\Exception\ContactExistsException;
 use OCA\DAV\CardDAV\CardDavBackend;
-use OCA\FederatedFileSharing\AddressHandler;
-use OCP\AppFramework\Db\DoesNotExistException;
-use OCP\AppFramework\Http;
-use OCP\AppFramework\Http\JSONResponse;
-use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\IAppConfig;
 use OCP\IURLGenerator;
-use OCP\IUserManager;
 use OCP\IUserSession;
 use Psr\Log\LoggerInterface;
 
@@ -32,13 +25,9 @@ class FederatedInvitesService {
 	private const INVITE_EXPIRATION_PERIOD_SECONDS = 2592000;
 
 	public function __construct(
-		private AddressHandler $addressHandler,
 		private IAppConfig $appConfig,
-		private ITimeFactory $timeFactory,
 		private IURLGenerator $urlGenerator,
-		private IUserManager $userManager,
 		private IUserSession $userSession,
-		private FederatedInviteMapper $federatedInviteMapper,
 		private LoggerInterface $logger,
 		private SocialApiService $socialApiService,
 	) {
@@ -117,110 +106,6 @@ class FederatedInvitesService {
 	 */
 	public function getInviteExpirationDate(int $creationDate): int {
 		return $creationDate + self::INVITE_EXPIRATION_PERIOD_SECONDS;
-	}
-
-	/**
-	 * This is the invite-accepted capability implementation.
-	 */
-	public function inviteAccepted(string $recipientProvider, string $token, string $userID, string $email, string $name): JSONResponse {
-		$this->logger->debug('Processing share invitation for ' . $userID . ' with token ' . $token . ' and email ' . $email . ' and name ' . $name);
-
-		$updated = $this->timeFactory->getTime();
-
-		if ($token === '') {
-			$response = new JSONResponse(['message' => 'Invalid or non existing token', 'error' => true], Http::STATUS_BAD_REQUEST);
-			$response->throttle();
-			return $response;
-		}
-
-		try {
-			$invitation = $this->federatedInviteMapper->findByToken($token);
-		} catch (DoesNotExistException) {
-			$response = ['message' => 'Invalid or non existing token', 'error' => true];
-			$status = Http::STATUS_BAD_REQUEST;
-			$response = new JSONResponse($response, $status);
-			$response->throttle();
-			return $response;
-		}
-
-		if ($invitation->isAccepted() === true) {
-			$response = ['message' => 'Invite already accepted', 'error' => true];
-			$status = Http::STATUS_CONFLICT;
-			return new JSONResponse($response, $status);
-		}
-
-		if ($invitation->getExpiredAt() !== null && $updated > $invitation->getExpiredAt()) {
-			$response = ['message' => 'Invitation expired', 'error' => true];
-			$status = Http::STATUS_BAD_REQUEST;
-			return new JSONResponse($response, $status);
-		}
-		// Note that there is no user session; local user is the sender of the invite
-		$localUser = $this->userManager->get($invitation->getUserId());
-		if ($localUser === null) {
-			$response = ['message' => 'Invalid or non existing token', 'error' => true];
-			$status = Http::STATUS_BAD_REQUEST;
-			$response = new JSONResponse($response, $status);
-			$response->throttle();
-			return $response;
-		}
-
-		$sharedFromEmail = $localUser->getEMailAddress();
-		if ($sharedFromEmail === null) {
-			$response = ['message' => 'Invalid or non existing token', 'error' => true];
-			$status = Http::STATUS_BAD_REQUEST;
-			$response = new JSONResponse($response, $status);
-			$response->throttle();
-			return $response;
-		}
-		$sharedFromDisplayName = $localUser->getDisplayName();
-
-		$response = ['userID' => $localUser->getUID(), 'email' => $sharedFromEmail, 'name' => $sharedFromDisplayName];
-
-		// Create the local contact first, then mark the invitation accepted.
-		// This avoids reporting success while the inviter-side contact is missing.
-		$cloudId = $userID . '@' . $this->addressHandler->removeProtocolFromUrl($recipientProvider);
-		try {
-			$contactRef = $this->createNewContact(
-				$cloudId,
-				$email,
-				$name,
-				$localUser->getUID()
-			);
-			if ($contactRef === null) {
-				return new JSONResponse([
-					'message' => 'Could not create local contact after invite acceptance',
-					'error' => true,
-				], Http::STATUS_INTERNAL_SERVER_ERROR);
-			}
-		} catch (ContactExistsException) {
-			$this->logger->warning('Contact with cloud id {cloudId} already exists for user {userId}.', [
-				'app' => Application::APP_ID,
-				'cloudId' => $cloudId,
-				'userId' => $localUser->getUID(),
-			]);
-		}
-
-		$invitation->setAccepted(true);
-		$invitation->setRecipientEmail($email);
-		$invitation->setRecipientName($name);
-		$invitation->setRecipientProvider($recipientProvider);
-		$invitation->setRecipientUserId($userID);
-		$invitation->setAcceptedAt($updated);
-		try {
-			$this->federatedInviteMapper->update($invitation);
-		} catch (Exception $e) {
-			$this->logger->error('Could not persist accepted invitation', [
-				'app' => Application::APP_ID,
-				'exception' => $e,
-				'token' => $token,
-			]);
-			return new JSONResponse([
-				'message' => 'Could not store invitation acceptance',
-				'error' => true,
-			], Http::STATUS_INTERNAL_SERVER_ERROR);
-		}
-
-		return new JSONResponse($response, Http::STATUS_OK);
 	}
 
 	/**

@@ -16,12 +16,12 @@ use OCP\EventDispatcher\IEventListener;
 use OCP\IAppConfig;
 use OCP\IURLGenerator;
 use OCP\OCM\Events\LocalOCMDiscoveryEvent;
+use OCP\OCM\Events\ResourceTypeRegisterEvent;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
-/** @template-implements IEventListener<LocalOCMDiscoveryEvent> */
+/** @template-implements IEventListener<Event> */
 class OcmDiscoveryListener implements IEventListener {
-
 	public function __construct(
 		private IAppConfig $appConfig,
 		private IURLGenerator $urlGenerator,
@@ -30,14 +30,14 @@ class OcmDiscoveryListener implements IEventListener {
 	}
 
 	/**
-	 * This handler will register the capability invite-accepted
-	 * and set the invite accept dialog url.
+	 * This handler validates invite accept dialog configuration
+	 * for OCM discovery events.
 	 *
-	 * @param Event $event an event of type LocalOCMDiscoveryEvent
+	 * @param Event $event an event of type LocalOCMDiscoveryEvent or ResourceTypeRegisterEvent
 	 * @return void
 	 */
 	public function handle(Event $event): void {
-		if (!($event instanceof LocalOCMDiscoveryEvent)) {
+		if (!$this->isOcmDiscoveryEvent($event)) {
 			return;
 		}
 
@@ -55,7 +55,7 @@ class OcmDiscoveryListener implements IEventListener {
 		}
 
 		try {
-			$absoluteDialogUrl = $this->urlGenerator->linkToRouteAbsolute($inviteAcceptDialog);
+			$this->urlGenerator->linkToRouteAbsolute($inviteAcceptDialog);
 		} catch (Throwable $e) {
 			$this->logger->warning('OCM invites are enabled but invite accept dialog route cannot be resolved', [
 				'app' => Application::APP_ID,
@@ -64,8 +64,10 @@ class OcmDiscoveryListener implements IEventListener {
 			]);
 			return;
 		}
+	}
 
-		$event->addCapability('invite-accepted');
-		$event->getProvider()->setInviteAcceptDialog($absoluteDialogUrl);
+	private function isOcmDiscoveryEvent(Event $event): bool {
+		return $event instanceof ResourceTypeRegisterEvent
+			|| $event instanceof LocalOCMDiscoveryEvent;
 	}
 }

@@ -5,7 +5,7 @@
 
 <template>
 	<div class="contact-header__infos">
-		<h5 class="">
+		<h5>
 			{{ t('contacts', 'Accept an invite to share contact information') }}
 		</h5>
 		<p>{{ t('contacts', 'After you accept, both of you will appear in each other\'s contacts list and you can start sharing data with each other.') }}</p>

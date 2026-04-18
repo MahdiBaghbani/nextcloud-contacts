@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace OCA\Contacts\Cron;
 
 use OCA\Contacts\AppInfo\Application;
+use OCA\Contacts\ConfigLexicon;
 use OCA\Contacts\WayfProvider;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\TimedJob;
@@ -30,7 +31,6 @@ class UpdateOcmProviders extends TimedJob {
 	protected function run($argument) {
 		$data = $this->wayfProvider->getMeshProviders();
 		$data['expires'] = time() + $this->expire_time;
-		$json = json_encode($data);
-		$this->appConfig->setValueArray(Application::APP_ID, 'federations_cache', $data, true);
+		$this->appConfig->setValueArray(Application::APP_ID, ConfigLexicon::FEDERATIONS_CACHE, $data, true);
 	}
 }

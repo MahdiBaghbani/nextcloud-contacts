@@ -107,17 +107,26 @@ class FederatedInvitesController extends PageController {
 	#[NoAdminRequired]
 	#[FrontpageRoute(verb: 'GET', url: '/ocm/invitations')]
 	public function getInvites(): JSONResponse {
-		$_invites = $this->federatedInviteMapper->findOpenInvitesByUid($this->userSession->getUser()->getUID());
-		$invites = [];
-		foreach ($_invites as $invite) {
-			if ($invite instanceof FederatedInvite) {
-				array_push(
-					$invites,
-					$invite->jsonSerialize()
-				);
+		$uid = $this->userSession->getUser()->getUID();
+		try {
+			$_invites = $this->federatedInviteMapper->findOpenInvitesByUid($uid);
+			$invites = [];
+			foreach ($_invites as $invite) {
+				if ($invite instanceof FederatedInvite) {
+					array_push(
+						$invites,
+						$invite->jsonSerialize()
+					);
+				}
 			}
+			return new JSONResponse($invites, Http::STATUS_OK);
+		} catch (Exception $e) {
+			$this->logger->error("An unexpected error occurred loading invites for user with uid=$uid. Stacktrace: " . $e->getTraceAsString(), ['app' => Application::APP_ID]);
+			return new JSONResponse([
+				'code' => 'ocm_invites_fetch_failed',
+				'message' => 'Could not load invites.',
+			], Http::STATUS_INTERNAL_SERVER_ERROR);
 		}
-		return new JSONResponse($invites, Http::STATUS_OK);
 	}
 
 	/**
@@ -527,7 +536,10 @@ class FederatedInvitesController extends PageController {
 			);
 		} catch (Exception $e) {
 			$this->logger->error("An unexpected error occurred claiming invite with token=$token. Stacktrace: " . $e->getTraceAsString(), ['app' => Application::APP_ID]);
-			return new JSONResponse(['message' => 'An unexpected error occurred attaching the email.'], Http::STATUS_INTERNAL_SERVER_ERROR);
+			return new JSONResponse([
+				'code' => 'ocm_invite_claim_exception',
+				'message' => 'An unexpected error occurred attaching the email.',
+			], Http::STATUS_INTERNAL_SERVER_ERROR);
 		}
 
 		if ($claimed === false) {
@@ -549,8 +561,9 @@ class FederatedInvitesController extends PageController {
 		$response = $this->sendEmail($token, $senderProvider, $email, $message);
 		if ($response->getStatus() !== Http::STATUS_OK) {
 			$this->logger->error("An unexpected error occurred sending the invite with token $token. HTTP response status: " . $response->getStatus(), ['app' => Application::APP_ID]);
+			$reverted = false;
 			try {
-				$this->federatedInviteMapper->revertInviteEmail(
+				$reverted = $this->federatedInviteMapper->revertInviteEmail(
 					$token,
 					$uid,
 					$email,
@@ -559,6 +572,17 @@ class FederatedInvitesController extends PageController {
 				);
 			} catch (Exception $e) {
 				$this->logger->error("Could not revert invite with token=$token after mailer failure. Stacktrace: " . $e->getTraceAsString(), ['app' => Application::APP_ID]);
+			}
+			if ($reverted !== true) {
+				$mailFailure = $response->getData();
+				$mailMessage = is_array($mailFailure) && isset($mailFailure['message']) && is_string($mailFailure['message'])
+					? $mailFailure['message']
+					: null;
+				return new JSONResponse([
+					'code' => 'ocm_invite_revert_failed',
+					'message' => $this->il10->t('Could not revert invite after delivery failure. Please refresh and try again.'),
+					'mailError' => $mailMessage,
+				], $response->getStatus());
 			}
 			return $response;
 		}

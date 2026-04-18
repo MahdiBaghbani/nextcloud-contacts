@@ -32,25 +32,25 @@
 				<NcButton
 					v-if="isOcmInvitesEnabled && !loadingInvites"
 					variant="secondary"
-					:wide="true"
+					wide
 					:disabled="!defaultAddressbook"
 					@click="newInvite">
 					<template #icon>
 						<IconAccountSwitchOutline :size="20" />
 					</template>
-					{{ t("contacts", "Invite contact") }}
+					{{ t('contacts', 'Invite contact') }}
 				</NcButton>
 				<!-- accept-invite-button -->
 				<NcButton
 					v-if="isOcmInvitesEnabled && !loadingInvites"
 					variant="secondary"
-					:wide="true"
+					wide
 					:disabled="!defaultAddressbook"
 					@click="manualInviteAccept">
 					<template #icon>
 						<IconAccountArrowDownOutline :size="20" />
 					</template>
-					{{ t("contacts", "Accept Invite") }}
+					{{ t('contacts', 'Accept invite') }}
 				</NcButton>
 			</div>
 		</RootNavigation>
@@ -68,7 +68,9 @@
 		<OcmInvitesContent
 			v-if="isInvitesView"
 			:invites-list="invitesList"
-			:loading="loadingInvites" />
+			:error-message="ocmInvitesLoadError"
+			:loading="loadingInvites"
+			@retry-load="fetchOcmInvites" />
 		<ContactsContent
 			v-else
 			:contacts-list="contactsList"
@@ -119,15 +121,13 @@
 		</Modal>
 		<Modal
 			v-if="showManualInvite"
-			:name="t('contacts', 'Accept an invite')"
+			:name="t('contacts', 'Accept invite')"
 			:no-close="loadingUpdate"
 			@close="manualInviteCancel">
-			<div>
-				<OcmAcceptForm
-					:loading-update="loadingUpdate"
-					@accept="handleAccept"
-					@cancel="manualInviteCancel" />
-			</div>
+			<OcmAcceptForm
+				:loading-update="loadingUpdate"
+				@accept="handleAccept"
+				@cancel="manualInviteCancel" />
 		</Modal>
 
 		<!-- invite accept dialog -->
@@ -364,6 +364,10 @@ const _default = {
 			return this.ocminvitesStore.sortedOcmInvites
 		},
 
+		ocmInvitesLoadError() {
+			return this.ocminvitesStore.inviteListError || ''
+		},
+
 		...mapStores(useOcmInvitesStore),
 
 		isInvitesView() {
@@ -461,13 +465,7 @@ const _default = {
 						this.fetchContacts()
 					}
 					if (isOcmInvitesEnabled) {
-						// get OCM invites
-						this.ocminvitesStore.fetchOcmInvites().then(() => {
-							this.loadingInvites = false
-							if (this.$route.name === ROUTE_NAME_ALL_OCM_INVITES) {
-								this.selectFirstOcmInviteIfNone()
-							}
-						})
+						this.fetchOcmInvites()
 					}
 				})
 				.then(() => {
@@ -598,9 +596,18 @@ const _default = {
 			})
 		},
 
-		fetchOcmInvites() {
-			this.ocminvitesStore.fetchOcmInvites()
-			this.loadingInvites = false
+		async fetchOcmInvites() {
+			this.loadingInvites = true
+			try {
+				await this.ocminvitesStore.fetchOcmInvites()
+				if (this.$route.name === ROUTE_NAME_ALL_OCM_INVITES) {
+					this.selectFirstOcmInviteIfNone()
+				}
+			} catch (error) {
+				logger.error('Could not fetch OCM invites', { error })
+			} finally {
+				this.loadingInvites = false
+			}
 		},
 
 		manualInviteAccept() {

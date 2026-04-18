@@ -5,8 +5,8 @@
 
 <template>
 	<div class="contact-header__infos">
-		<h5>{{ t('contacts', 'Invite someone outside your organisation to collaborate.') }}</h5>
-		<p>{{ t('contacts', 'After the invitee has accepted the invite both of you will appear in each others\' contacts list and you can start sharing data with each other.') }}</p>
+		<h5>{{ t('contacts', 'Invite someone outside your organization to collaborate.') }}</h5>
+		<p>{{ t('contacts', 'After the invitee accepts the invite, both of you will appear in each other\'s contacts list and you can start sharing data with each other.') }}</p>
 
 		<div class="form-field">
 			<NcTextField

@@ -23,6 +23,7 @@ use OCP\AppFramework\Bootstrap\IBootstrap;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
 use OCP\EventDispatcher\IEventDispatcher;
 use OCP\OCM\Events\LocalOCMDiscoveryEvent;
+use OCP\OCM\Events\ResourceTypeRegisterEvent;
 
 class Application extends App implements IBootstrap {
 	public const APP_ID = 'contacts';
@@ -43,7 +44,10 @@ class Application extends App implements IBootstrap {
 		$context->registerEventListener(LoadAdditionalScriptsEvent::class, LoadContactsFilesActions::class);
 		$context->registerEventListener(LoadContactsOcaApiEvent::class, LoadContactsOcaApi::class);
 		$context->registerEventListener(FederatedInviteAcceptedEvent::class, FederatedInviteAcceptedListener::class);
-		$context->registerEventListener(LocalOCMDiscoveryEvent::class, OcmDiscoveryListener::class);
+		$ocmDiscoveryEvent = class_exists(LocalOCMDiscoveryEvent::class)
+			? LocalOCMDiscoveryEvent::class
+			: ResourceTypeRegisterEvent::class;
+		$context->registerEventListener($ocmDiscoveryEvent, OcmDiscoveryListener::class);
 	}
 
 	#[\Override]

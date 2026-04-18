@@ -6,7 +6,7 @@
 					<h2>{{ t('contacts', 'Providers') }}</h2>
 					<p>{{ t('contacts', 'Where are you from?') }}</p>
 					<p>{{ t('contacts', 'Please tell us your cloud provider.') }}</p>
-					<div v-if="federations">
+					<div v-if="hasFederationData">
 						<NcTextField
 							id="wayf-search"
 							v-model="query"
@@ -17,37 +17,51 @@
 								<Magnify :size="20" />
 							</template>
 						</NcTextField>
-						<div
-							v-for="(providers, federation) in federations"
-							:key="federation">
-							<h3>{{ federation }}</h3>
-							<ul id="wayf-list" class="wayf-list">
-								<NcListItem
-									v-for="p in filteredBy(providers)"
-									:key="p.fqdn"
-									:href="providerInviteUrl(p)"
-									:name="p.name"
-									one-line>
-									<template #icon>
-										<NcListItemIcon :name="p.name" :subname="p.fqdn">
-											<WeatherCloudyArrowRight :size="20" />
-										</NcListItemIcon>
-									</template>
-								</NcListItem>
-							</ul>
+						<div v-if="hasVisibleProviders">
+							<div
+								v-for="group in visibleFederations"
+								:key="group.federation">
+								<h3>{{ group.federation }}</h3>
+								<ul class="wayf-list">
+									<NcListItem
+										v-for="p in group.providers"
+										:key="p.fqdn"
+										:href="p.inviteUrl"
+										:name="p.name"
+										one-line>
+										<template #icon>
+											<NcListItemIcon :name="p.name" :subname="p.fqdn">
+												<WeatherCloudyArrowRight :size="20" />
+											</NcListItemIcon>
+										</template>
+									</NcListItem>
+								</ul>
+							</div>
 						</div>
+						<p v-else class="wayf-empty">
+							{{ t('contacts', 'No providers match your search.') }}
+						</p>
 					</div>
-					<NcTextField
-						id="wayf-manual"
-						v-model="manualProvider"
-						:label="t('contacts', 'No provider listed? Enter one manually.')"
-						type="text"
-						name="manual"
-						@keyup.enter="goToManualProvider">
-						<template #icon>
-							<WeatherCloudyArrowRight :size="20" />
-						</template>
-					</NcTextField>
+					<p v-else class="wayf-empty">
+						{{ t('contacts', 'No providers are currently available.') }}
+					</p>
+					<form class="wayf-manual-form" @submit.prevent="goToManualProvider">
+						<NcTextField
+							id="wayf-manual"
+							v-model="manualProvider"
+							:label="t('contacts', 'No provider listed? Enter one manually.')"
+							type="text"
+							name="manual">
+							<template #icon>
+								<WeatherCloudyArrowRight :size="20" />
+							</template>
+						</NcTextField>
+						<div class="wayf-manual-actions">
+							<NcButton type="submit">
+								{{ t('contacts', 'Continue') }}
+							</NcButton>
+						</div>
+					</form>
 				</div>
 				<div v-else>
 					<p>{{ t('contacts', 'You need a token for this feature to work.') }}</p>
@@ -62,6 +76,7 @@ import axios from '@nextcloud/axios'
 import { showError } from '@nextcloud/dialogs'
 import { generateUrl } from '@nextcloud/router'
 import {
+	NcButton,
 	NcGuestContent,
 	NcListItem,
 	NcListItemIcon,
@@ -74,6 +89,7 @@ export default {
 	name: 'Wayf',
 	components: {
 		Magnify,
+		NcButton,
 		NcGuestContent,
 		NcListItem,
 		NcListItemIcon,
@@ -88,6 +104,30 @@ export default {
 	},
 
 	data: () => ({ query: '', manualProvider: '' }),
+
+	computed: {
+		hasFederationData() {
+			return Object.keys(this.federations || {}).length > 0
+		},
+
+		visibleFederations() {
+			return Object.entries(this.federations || {}).reduce((groups, [federation, providers]) => {
+				const visibleProviders = this.filteredBy(providers)
+				if (visibleProviders.length > 0) {
+					groups.push({
+						federation,
+						providers: visibleProviders,
+					})
+				}
+				return groups
+			}, [])
+		},
+
+		hasVisibleProviders() {
+			return this.visibleFederations.length > 0
+		},
+	},
+
 	methods: {
 		async discoverProvider(base) {
 			const resp = await axios.get(generateUrl('/apps/contacts/discover'), {
@@ -112,7 +152,7 @@ export default {
 		providerInviteUrl(providerEntry) {
 			const source = providerEntry?.inviteAcceptDialog || ''
 			if (!source) {
-				return '#'
+				return ''
 			}
 			try {
 				const url = new URL(source, window.location.origin)
@@ -124,13 +164,33 @@ export default {
 				}
 				return url.toString()
 			} catch (error) {
-				return '#'
+				return ''
 			}
 		},
 
 		filteredBy(providers) {
 			const s = (this.query || '').toLowerCase()
-			return providers.filter((p) => p.name.toLowerCase().includes(s) || p.fqdn.toLowerCase().includes(s))
+			if (!Array.isArray(providers)) {
+				return []
+			}
+			return providers.reduce((list, providerEntry) => {
+				const name = String(providerEntry?.name || '')
+				const fqdn = String(providerEntry?.fqdn || '')
+				const inviteUrl = this.providerInviteUrl(providerEntry)
+				if (inviteUrl === '') {
+					return list
+				}
+				if (!name.toLowerCase().includes(s) && !fqdn.toLowerCase().includes(s)) {
+					return list
+				}
+				list.push({
+					...providerEntry,
+					name: name || fqdn,
+					fqdn,
+					inviteUrl,
+				})
+				return list
+			}, [])
 		},
 
 		async goToManualProvider() {

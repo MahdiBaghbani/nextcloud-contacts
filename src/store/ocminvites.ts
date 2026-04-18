@@ -20,6 +20,8 @@ interface OcmInvitesState {
 	ocmInvites: Record<string, OcmInviteEntry>
 	sortedOcmInvites: SortedEntry[]
 	orderKey: keyof OcmInviteData
+	inviteListStatus: 'idle' | 'loading' | 'success' | 'error'
+	inviteListError: string | null
 }
 
 interface NewInvitePayload {
@@ -62,23 +64,36 @@ const useOcmInvitesStore = defineStore('ocminvites', {
 		ocmInvites: {},
 		sortedOcmInvites: [],
 		orderKey: 'recipientEmail',
+		inviteListStatus: 'idle',
+		inviteListError: null,
 	}),
 
 	getters: {
 		getOcmInvite: (state) => (key: string): OcmInviteEntry | undefined => state.ocmInvites[key],
 		getOcmInvites: (state): Record<string, OcmInviteEntry> => state.ocmInvites,
 		getSortedOcmInvites: (state): SortedEntry[] => state.sortedOcmInvites,
+		getInviteListStatus: (state): OcmInvitesState['inviteListStatus'] => state.inviteListStatus,
+		getInviteListError: (state): string | null => state.inviteListError,
 	},
 
 	actions: {
 		async fetchOcmInvites(): Promise<void> {
+			this.inviteListStatus = 'loading'
+			this.inviteListError = null
 			try {
 				const response = await axios.get(generateUrl('/apps/contacts/ocm/invitations'))
-				const invites = Array.isArray(response.data) ? response.data : []
+				if (!Array.isArray(response.data)) {
+					throw new Error('Invalid invite list payload from server')
+				}
+				const invites = response.data
 				this.replaceInvites(invites)
 				this.sortInvites()
+				this.inviteListStatus = 'success'
 			} catch (error) {
+				this.inviteListStatus = 'error'
+				this.inviteListError = error instanceof Error ? error.message : String(error)
 				logger.error('Error fetching OCM invites: ' + error)
+				throw error
 			}
 		},
 

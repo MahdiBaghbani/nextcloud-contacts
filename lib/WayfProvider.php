@@ -37,7 +37,7 @@ class WayfProvider {
 	 * @return array an array containing all mesh providers
 	 */
 	public function getMeshProviders(): array {
-		$urls = preg_split('/\s+/', trim($this->appConfig->getValueString(Application::APP_ID, 'mesh_providers_service')));
+		$urls = preg_split('/\s+/', trim($this->appConfig->getValueString(Application::APP_ID, ConfigLexicon::MESH_PROVIDERS_SERVICE)));
 		$federations = [];
 		$ourServerUrlParts = parse_url($this->urlGenerator->getAbsoluteUrl('/'));
 		$ourFqdn = is_array($ourServerUrlParts) && isset($ourServerUrlParts['host']) ? (string)$ourServerUrlParts['host'] : '';
@@ -104,7 +104,7 @@ class WayfProvider {
 	 * @return array an array containing all mesh providers
 	 */
 	public function getMeshProvidersFromCache(): array {
-		$data = $this->appConfig->getValueArray(Application::APP_ID, 'federations_cache', [], true);
+		$data = $this->appConfig->getValueArray(Application::APP_ID, ConfigLexicon::FEDERATIONS_CACHE, [], true);
 		$expires = is_array($data) && array_key_exists('expires', $data) ? (int)$data['expires'] : 0;
 		if (is_array($data) && $expires > time()) {
 			$this->logger->debug('Cache hit, expires at: ' . $expires, ['app' => Application::APP_ID]);
@@ -118,11 +118,11 @@ class WayfProvider {
 
 	/**
 	 * Returns the WAYF (Where Are You From) login page endpoint to be used in the invitation link.
-	 * Can be read from the app config key 'wayf_endpoint'.
+	 * Can be read from the app config key in ConfigLexicon::WAYF_ENDPOINT.
 	 * If not set the endpoint the WAYF page implementation of this app is returned.
 	 * Note that the invitation link still needs the token and provider parameters, eg. "https://<wayf-page-endpoint>?token=$token&provider=$provider"
 	 *
-	 * Security: the value of 'wayf_endpoint' is used as the base of every
+	 * Security: the value of ConfigLexicon::WAYF_ENDPOINT is used as the base of every
 	 * outgoing invitation URL. It is administrator-only configuration and
 	 * must point to a trusted WAYF page that the recipient can safely visit.
 	 * Setting it to an attacker-controlled origin would let invite links
@@ -133,7 +133,7 @@ class WayfProvider {
 	public function getWayfEndpoint(): ?string {
 		// default wayf endpoint
 		$defaultWayfEndpoint = $this->urlGenerator->linkToRouteAbsolute(Application::APP_ID . '.federatedinvites.wayf');
-		return $this->appConfig->getValueString(Application::APP_ID, 'wayf_endpoint', $defaultWayfEndpoint);
+		return $this->appConfig->getValueString(Application::APP_ID, ConfigLexicon::WAYF_ENDPOINT, $defaultWayfEndpoint);
 	}
 
 	/**

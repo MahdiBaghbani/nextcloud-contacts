@@ -8,6 +8,8 @@ import { translatePlural as n, translate as t } from '@nextcloud/l10n'
 import { createApp } from 'vue'
 import Wayf from './components/Ocm/Wayf.vue'
 
+import './css/wayf.scss'
+
 if (!document.body.id) {
 	document.body.id = 'body-public'
 }
@@ -19,4 +21,3 @@ document.addEventListener('DOMContentLoaded', () => {
 	app.config.globalProperties.n = n
 	app.mount('#contacts-wayf')
 })
-import './css/wayf.scss'

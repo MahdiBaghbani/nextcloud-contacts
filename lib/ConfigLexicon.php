@@ -13,6 +13,7 @@ use OCP\Config\Lexicon\Entry;
 use OCP\Config\Lexicon\ILexicon;
 use OCP\Config\Lexicon\Strictness;
 use OCP\Config\ValueType;
+use OCP\IAppConfig;
 
 /**
  * Config Lexicon for contacts.
@@ -28,6 +29,9 @@ class ConfigLexicon implements ILexicon {
 	public const OCM_INVITES_CC_SENDER = 'ocm_invites_cc_sender';
 	public const OCM_INVITES_ENCODED_COPY_BUTTON = 'ocm_invites_encoded_copy_button';
 	public const OCM_INVITES_DISABLE_SSRF_GUARD = 'ocm_invites_disable_ssrf_guard';
+	public const MESH_PROVIDERS_SERVICE = 'mesh_providers_service';
+	public const WAYF_ENDPOINT = 'wayf_endpoint';
+	public const FEDERATIONS_CACHE = 'federations_cache';
 
 	public function getStrictness(): Strictness {
 		return Strictness::NOTICE;
@@ -68,6 +72,29 @@ class ConfigLexicon implements ILexicon {
 				ValueType::BOOL,
 				defaultRaw: false,
 				definition: 'Unsafe development override that disables private-host and localhost checks for OCM invite discovery.',
+				lazy: true,
+			),
+			new Entry(
+				self::MESH_PROVIDERS_SERVICE,
+				ValueType::STRING,
+				defaultRaw: '',
+				definition: 'Space-separated list of mesh provider service URLs used for WAYF discovery.',
+				lazy: true,
+			),
+			new Entry(
+				self::WAYF_ENDPOINT,
+				ValueType::STRING,
+				defaultRaw: '',
+				definition: 'Optional override for the base WAYF endpoint used in invite links.',
+				note: 'If empty, the app route is used at runtime.',
+				lazy: true,
+			),
+			new Entry(
+				self::FEDERATIONS_CACHE,
+				ValueType::ARRAY,
+				defaultRaw: [],
+				definition: 'Internal cron-maintained cache for discovered federations and expiry metadata.',
+				flags: IAppConfig::FLAG_SENSITIVE,
 				lazy: true,
 			),
 		];

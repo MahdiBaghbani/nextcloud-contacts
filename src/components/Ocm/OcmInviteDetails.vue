@@ -51,60 +51,26 @@
 					<p class="share-hint">
 						{{ t('contacts', 'Useful for chat apps and manual acceptance. The recipient already received the invite by email.') }}
 					</p>
-					<div class="share-buttons">
-						<NcButton variant="secondary" data-testid="ocm-invite-link-copy-btn" @click="copyToClipboard(wayfLink, clipboardKinds.inviteLink)">
-							<template #icon>
-								<ContentCopyIcon :size="20" />
-							</template>
-							{{ t('contacts', 'Copy invite link') }}
-						</NcButton>
-						<NcButton variant="secondary" data-testid="ocm-invite-token-copy-btn" @click="copyToClipboard(plainInviteString, clipboardKinds.inviteCode)">
-							<template #icon>
-								<ContentCopyIcon :size="20" />
-							</template>
-							{{ t('contacts', 'Copy invite code') }}
-						</NcButton>
-						<NcButton
-							v-if="encodedCopyButtonEnabled"
-							variant="secondary"
-							data-testid="ocm-invite-base64-copy-btn"
-							@click="copyToClipboard(base64InviteString, clipboardKinds.encodedInvite)">
-							<template #icon>
-								<ContentCopyIcon :size="20" />
-							</template>
-							{{ t('contacts', 'Copy encoded invite') }}
-						</NcButton>
-					</div>
+					<OcmInviteShareActions
+						:base64-invite-string="base64InviteString"
+						:clipboard-kinds="clipboardKinds"
+						:encoded-copy-button-enabled="encodedCopyButtonEnabled"
+						:plain-invite-string="plainInviteString"
+						:wayf-link="wayfLink"
+						@copy="onCopyAction" />
 				</details>
 				<div v-else class="share-section" data-testid="ocm-invite-share-section">
 					<h3>{{ t('contacts', 'Share invite') }}</h3>
 					<p class="share-hint">
 						{{ t('contacts', 'The invite link is the easiest way to share. Invite codes are for manual acceptance.') }}
 					</p>
-					<div class="share-buttons">
-						<NcButton variant="secondary" data-testid="ocm-invite-link-copy-btn" @click="copyToClipboard(wayfLink, clipboardKinds.inviteLink)">
-							<template #icon>
-								<ContentCopyIcon :size="20" />
-							</template>
-							{{ t('contacts', 'Copy invite link') }}
-						</NcButton>
-						<NcButton variant="secondary" data-testid="ocm-invite-token-copy-btn" @click="copyToClipboard(plainInviteString, clipboardKinds.inviteCode)">
-							<template #icon>
-								<ContentCopyIcon :size="20" />
-							</template>
-							{{ t('contacts', 'Copy invite code') }}
-						</NcButton>
-						<NcButton
-							v-if="encodedCopyButtonEnabled"
-							variant="secondary"
-							data-testid="ocm-invite-base64-copy-btn"
-							@click="copyToClipboard(base64InviteString, clipboardKinds.encodedInvite)">
-							<template #icon>
-								<ContentCopyIcon :size="20" />
-							</template>
-							{{ t('contacts', 'Copy encoded invite') }}
-						</NcButton>
-					</div>
+					<OcmInviteShareActions
+						:base64-invite-string="base64InviteString"
+						:clipboard-kinds="clipboardKinds"
+						:encoded-copy-button-enabled="encodedCopyButtonEnabled"
+						:plain-invite-string="plainInviteString"
+						:wayf-link="wayfLink"
+						@copy="onCopyAction" />
 				</div>
 
 				<!-- Action buttons -->
@@ -167,9 +133,9 @@ import {
 } from '@nextcloud/vue'
 import { mapStores } from 'pinia'
 import IconAccountSwitchOutline from 'vue-material-design-icons/AccountSwitchOutline.vue'
-import ContentCopyIcon from 'vue-material-design-icons/ContentCopy.vue'
 import EmailFastOutlineIcon from 'vue-material-design-icons/EmailFastOutline.vue'
 import OcmAttachEmailForm from './OcmAttachEmailForm.vue'
+import OcmInviteShareActions from './OcmInviteShareActions.vue'
 import useOcmInvitesStore from '../../store/ocminvites.ts'
 
 const dateFormat = 'lll'
@@ -182,7 +148,6 @@ export default {
 	name: 'OcmInviteDetails',
 
 	components: {
-		ContentCopyIcon,
 		EmailFastOutlineIcon,
 		IconAccountSwitchOutline,
 		Modal,
@@ -190,6 +155,7 @@ export default {
 		NcButton,
 		NcEmptyContent,
 		OcmAttachEmailForm,
+		OcmInviteShareActions,
 	},
 
 	props: {
@@ -266,6 +232,10 @@ export default {
 	},
 
 	methods: {
+		onCopyAction({ text, kind }) {
+			this.copyToClipboard(text, kind)
+		},
+
 		formatDate(date) {
 			// moment takes milliseconds
 			return moment(date * 1000).format(dateFormat)
@@ -419,17 +389,6 @@ export default {
 		font-size: 0.85em;
 		color: var(--color-text-maxcontrast);
 		margin-bottom: 0.75em;
-	}
-
-	.share-buttons {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5em;
-
-		:deep(.button-vue) {
-			width: 100%;
-			justify-content: flex-start;
-		}
 	}
 }
 

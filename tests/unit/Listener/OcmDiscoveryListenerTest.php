@@ -15,21 +15,11 @@ use OCA\Contacts\ConfigLexicon as ContactsConfigLexicon;
 use OCA\Contacts\Listener\OcmDiscoveryListener;
 use OCP\IAppConfig;
 use OCP\IURLGenerator;
-use OCP\OCM\Events\LocalOCMDiscoveryEvent;
+use OCP\OCM\Events\ResourceTypeRegisterEvent;
 use OCP\OCM\IOCMProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Log\LoggerInterface;
 use Test\TestCase;
-
-final class TestLocalOcmDiscoveryEvent extends LocalOCMDiscoveryEvent {
-	public function __construct(private IOCMProvider $testProvider) {
-		parent::__construct($testProvider);
-	}
-
-	public function getProvider(): IOCMProvider {
-		return $this->testProvider;
-	}
-}
 
 class OcmDiscoveryListenerTest extends TestCase {
 	private IAppConfig&MockObject $appConfig;
@@ -54,8 +44,6 @@ class OcmDiscoveryListenerTest extends TestCase {
 
 	public function testHandleReturnsEarlyWhenInvitesDisabled(): void {
 		$provider = $this->createMock(IOCMProvider::class);
-		$provider->expects($this->never())->method('setCapabilities');
-		$provider->expects($this->never())->method('setInviteAcceptDialog');
 
 		$this->appConfig->expects($this->once())
 			->method('getValueBool')
@@ -65,13 +53,11 @@ class OcmDiscoveryListenerTest extends TestCase {
 		$this->urlGenerator->expects($this->never())->method('linkToRouteAbsolute');
 		$this->logger->expects($this->never())->method('warning');
 
-		$this->listener->handle(new TestLocalOcmDiscoveryEvent($provider));
+		$this->listener->handle($this->newOcmDiscoveryEvent($provider));
 	}
 
 	public function testHandleWarnsWhenDialogRouteIsMissing(): void {
 		$provider = $this->createMock(IOCMProvider::class);
-		$provider->expects($this->never())->method('setCapabilities');
-		$provider->expects($this->never())->method('setInviteAcceptDialog');
 
 		$this->appConfig->expects($this->once())
 			->method('getValueBool')
@@ -93,13 +79,11 @@ class OcmDiscoveryListenerTest extends TestCase {
 				}),
 			);
 
-		$this->listener->handle(new TestLocalOcmDiscoveryEvent($provider));
+		$this->listener->handle($this->newOcmDiscoveryEvent($provider));
 	}
 
 	public function testHandleWarnsWhenRouteResolutionFails(): void {
 		$provider = $this->createMock(IOCMProvider::class);
-		$provider->expects($this->never())->method('setCapabilities');
-		$provider->expects($this->never())->method('setInviteAcceptDialog');
 
 		$exception = new \RuntimeException('route boom');
 		$this->appConfig->expects($this->once())
@@ -126,19 +110,11 @@ class OcmDiscoveryListenerTest extends TestCase {
 				}),
 			);
 
-		$this->listener->handle(new TestLocalOcmDiscoveryEvent($provider));
+		$this->listener->handle($this->newOcmDiscoveryEvent($provider));
 	}
 
-	public function testHandleRegistersCapabilityAndDialogWhenConfigured(): void {
+	public function testHandleResolvesDialogRouteWhenConfigured(): void {
 		$provider = $this->createMock(IOCMProvider::class);
-		$provider->expects($this->once())
-			->method('setCapabilities')
-			->with(['invite-accepted'])
-			->willReturnSelf();
-		$provider->expects($this->once())
-			->method('setInviteAcceptDialog')
-			->with('https://cloud.example/ocm/invite-dialog')
-			->willReturnSelf();
 
 		$this->appConfig->expects($this->once())
 			->method('getValueBool')
@@ -154,6 +130,10 @@ class OcmDiscoveryListenerTest extends TestCase {
 			->willReturn('https://cloud.example/ocm/invite-dialog');
 		$this->logger->expects($this->never())->method('warning');
 
-		$this->listener->handle(new TestLocalOcmDiscoveryEvent($provider));
+		$this->listener->handle($this->newOcmDiscoveryEvent($provider));
+	}
+
+	private function newOcmDiscoveryEvent(IOCMProvider $provider): ResourceTypeRegisterEvent {
+		return new ResourceTypeRegisterEvent($provider);
 	}
 }

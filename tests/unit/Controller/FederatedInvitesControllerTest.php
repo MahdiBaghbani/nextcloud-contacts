@@ -143,6 +143,18 @@ class FederatedInvitesControllerTest extends TestCase {
 		return $invite;
 	}
 
+	public function testGetInvitesReturnsStructuredErrorWhenMapperFails(): void {
+		$this->mapper->expects($this->once())
+			->method('findOpenInvitesByUid')
+			->with(self::UID)
+			->willThrowException(new \RuntimeException('db fail'));
+
+		$response = $this->controller->getInvites();
+
+		$this->assertSame(Http::STATUS_INTERNAL_SERVER_ERROR, $response->getStatus());
+		$this->assertSame('ocm_invites_fetch_failed', $response->getData()['code']);
+	}
+
 	public function testAttachEmailAndSendUpdatesAndSends(): void {
 		$invite = $this->makeInvite(null);
 
@@ -198,6 +210,29 @@ class FederatedInvitesControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_CONFLICT, $response->getStatus());
 		$this->assertSame('ocm_invite_claim_failed', $response->getData()['code']);
 		$this->assertNull($invite->getRecipientEmail());
+	}
+
+	public function testAttachEmailAndSendReturnsClaimExceptionCodeWhenClaimFails(): void {
+		$invite = $this->makeInvite(null);
+
+		$this->mapper->method('findInviteByTokenAndUid')->willReturn($invite);
+		$this->mapper->method('findOpenInvitesByRecipientEmail')->willReturn([]);
+		$this->mailer->method('validateMailAddress')->willReturn(true);
+		$this->invitesService->method('getInviteExpirationDate')->willReturnCallback(static fn (int $t): int => $t + 2_592_000);
+		$now = $this->createMock(\DateTimeImmutable::class);
+		$now->method('getTimestamp')->willReturn(1_800_000_000);
+		$this->timeFactory->method('now')->willReturn($now);
+
+		$this->mapper->expects($this->once())
+			->method('claimInviteForEmail')
+			->willThrowException(new \RuntimeException('claim boom'));
+		$this->mailer->expects($this->never())->method('send');
+		$this->mapper->expects($this->never())->method('revertInviteEmail');
+
+		$response = $this->controller->attachEmailAndSend(self::TOKEN, 'recipient@example.org');
+
+		$this->assertSame(Http::STATUS_INTERNAL_SERVER_ERROR, $response->getStatus());
+		$this->assertSame('ocm_invite_claim_exception', $response->getData()['code']);
 	}
 
 	public function testAttachEmailAndSendRejectsWhenInviteBelongsToAnotherUser(): void {
@@ -301,6 +336,39 @@ class FederatedInvitesControllerTest extends TestCase {
 		$response = $this->controller->attachEmailAndSend(self::TOKEN, 'recipient@example.org');
 
 		$this->assertNotSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testAttachEmailAndSendReturnsRevertFailureWhenRevertMisses(): void {
+		$invite = $this->makeInvite(null);
+		$originalCreatedAt = $invite->getCreatedAt();
+		$originalExpiredAt = $invite->getExpiredAt();
+
+		$this->mapper->method('findInviteByTokenAndUid')->willReturn($invite);
+		$this->mapper->method('findOpenInvitesByRecipientEmail')->willReturn([]);
+		$this->mailer->method('validateMailAddress')->willReturn(true);
+		$this->mailer->method('createMessage')->willReturn($this->createMock(\OCP\Mail\IMessage::class));
+		$this->mailer->method('send')->willReturn(['recipient@example.org']);
+		$this->wayfProvider->method('getWayfEndpoint')->willReturn('https://example.org/wayf');
+		$this->invitesService->method('getProviderFQDN')->willReturn('example.org');
+		$this->invitesService->method('getInviteExpirationDate')->willReturnCallback(static fn (int $t): int => $t + 2_592_000);
+		$now = $this->createMock(\DateTimeImmutable::class);
+		$now->method('getTimestamp')->willReturn(1_800_000_000);
+		$this->timeFactory->method('now')->willReturn($now);
+
+		$this->mapper->expects($this->once())
+			->method('claimInviteForEmail')
+			->willReturn(true);
+		$this->mapper->expects($this->once())
+			->method('revertInviteEmail')
+			->with(self::TOKEN, self::UID, 'recipient@example.org', $originalCreatedAt, $originalExpiredAt)
+			->willReturn(false);
+
+		$response = $this->controller->attachEmailAndSend(self::TOKEN, 'recipient@example.org');
+
+		$this->assertSame(Http::STATUS_BAD_GATEWAY, $response->getStatus());
+		$body = $response->getData();
+		$this->assertSame('ocm_invite_revert_failed', $body['code']);
+		$this->assertNotEmpty($body['mailError']);
 	}
 
 	public function testAttachEmailAndSendEscapesUserContentInHtmlBody(): void {

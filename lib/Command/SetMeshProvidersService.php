@@ -9,6 +9,8 @@ declare(strict_types=1);
 
 namespace OCA\Contacts\Command;
 
+use OCA\Contacts\AppInfo\Application;
+use OCA\Contacts\ConfigLexicon;
 use OCP\IConfig;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -34,7 +36,7 @@ class SetMeshProvidersService extends Command {
 
 	public function execute(InputInterface $input, OutputInterface $output): int {
 		$disco = $input->getArgument('mesh-providers-service');
-		$this->config->setAppValue('contacts', 'mesh_providers_service', $disco);
+		$this->config->setAppValue(Application::APP_ID, ConfigLexicon::MESH_PROVIDERS_SERVICE, $disco);
 		$output->writeln('OCM Discovery Service successfully configured.');
 		return self::SUCCESS;
 	}

@@ -1,15 +1,10 @@
 <template>
 	<div class="ocm_manual_form">
-		<h5 class="">
-			{{ t("contacts", "Accept an invite to share contact information") }}
+		<h5>
+			{{ t('contacts', 'Accept an invite to share contact information') }}
 		</h5>
 		<p>
-			{{
-				t(
-					"contacts",
-					"After you accept, both of you will appear in each other's contacts list and you can start sharing data with each other.",
-				)
-			}}
+			{{ t('contacts', 'After you accept, both of you will appear in each other\'s contacts list and you can start sharing data with each other.') }}
 		</p>
 
 		<div class="ocm_manual_inputs">
@@ -27,14 +22,14 @@
 						<NcLoadingIcon v-if="loadingUpdate" :size="20" />
 						<IconCheck v-else :size="20" />
 					</template>
-					{{ t("contacts", "Accept") }}
+					{{ t('contacts', 'Accept') }}
 				</NcButton>
 				<NcButton :disabled="loadingUpdate" @click="cancel">
 					<template #icon>
 						<NcLoadingIcon v-if="loadingUpdate" :size="20" />
 						<IconCancel v-else :size="20" />
 					</template>
-					{{ t("contacts", "Cancel") }}
+					{{ t('contacts', 'Cancel') }}
 				</NcButton>
 			</div>
 		</div>

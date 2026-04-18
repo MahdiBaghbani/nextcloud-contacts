@@ -12,6 +12,19 @@
 		</EmptyContent>
 	</AppContent>
 
+	<AppContent v-else-if="hasLoadError">
+		<EmptyContent class="empty-content" :name="t('contacts', 'Could not load invites')">
+			<template #icon>
+				<IconAccountSwitchOutline :size="20" />
+			</template>
+		</EmptyContent>
+		<div class="invite-retry__buttons-row">
+			<NcButton @click="retryLoad">
+				{{ t('contacts', 'Retry') }}
+			</NcButton>
+		</div>
+	</AppContent>
+
 	<AppContent v-else-if="isEmptyGroup">
 		<EmptyContent class="empty-content" :name="t('contacts', 'There are no invites')">
 			<template #icon>
@@ -39,6 +52,7 @@ import {
 	NcAppContent as AppContent,
 	NcEmptyContent as EmptyContent,
 	NcLoadingIcon as IconLoading,
+	NcButton,
 } from '@nextcloud/vue'
 import { mapStores } from 'pinia'
 import IconAccountSwitchOutline from 'vue-material-design-icons/AccountSwitchOutline.vue'
@@ -55,6 +69,7 @@ export default {
 		EmptyContent,
 		IconAccountSwitchOutline,
 		IconLoading,
+		NcButton,
 		OcmInviteDetails,
 		OcmInvitesList,
 	},
@@ -71,7 +86,14 @@ export default {
 			type: Array,
 			required: true,
 		},
+
+		errorMessage: {
+			type: String,
+			default: '',
+		},
 	},
+
+	emits: ['retry-load'],
 
 	data() {
 		return {
@@ -104,8 +126,18 @@ export default {
 			return this.invitesList.length === 0
 		},
 
+		hasLoadError() {
+			return this.errorMessage.trim() !== ''
+		},
+
 		showDetails() {
 			return !!this.selectedInvite
+		},
+	},
+
+	methods: {
+		retryLoad() {
+			this.$emit('retry-load')
 		},
 	},
 }
@@ -119,5 +151,11 @@ export default {
 .invite-revoke__buttons-row {
 	margin-top: 1em;
 	margin-inline-start: 4em;
+}
+
+.invite-retry__buttons-row {
+	display: flex;
+	justify-content: center;
+	padding-bottom: calc(var(--default-grid-baseline) * 3);
 }
 </style>
