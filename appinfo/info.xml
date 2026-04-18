@@ -52,6 +52,13 @@
 		<job>OCA\Contacts\Cron\UpdateOcmProviders</job>
 	</background-jobs>
 
+	<commands>
+		<command>OCA\Contacts\Command\EnableOcmInvites</command>
+		<command>OCA\Contacts\Command\DisableOcmInvites</command>
+		<command>OCA\Contacts\Command\OcmInvitesConfig</command>
+		<command>OCA\Contacts\Command\SetMeshProvidersService</command>
+	</commands>
+
 	<settings>
 		<admin>OCA\Contacts\Settings\AdminSettings</admin>
 	</settings>
@@ -69,10 +76,4 @@
 		<provider>OCA\Contacts\ContactsMenu\Providers\DetailsProvider</provider>
 	</contactsmenu>
 
-	<commands>
-		<command>OCA\Contacts\Command\EnableOcmInvites</command>
-		<command>OCA\Contacts\Command\DisableOcmInvites</command>
-		<command>OCA\Contacts\Command\OcmInvitesConfig</command>
-		<command>OCA\Contacts\Command\SetMeshProvidersService</command>
-	</commands>
 </info>

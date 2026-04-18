@@ -7,7 +7,6 @@
 
 namespace OCA\Contacts\Service;
 
-use Exception;
 use OCA\Contacts\AppInfo\Application;
 use OCA\Contacts\ConfigLexicon;
 use OCA\Contacts\Exception\ContactExistsException;
