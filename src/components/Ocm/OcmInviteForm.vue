@@ -7,22 +7,29 @@
 	<div class="contact-header__infos">
 		<h5>{{ t('contacts', 'Invite someone outside your organisation to collaborate.') }}</h5>
 		<p>{{ t('contacts', 'After the invitee has accepted the invite both of you will appear in each others\' contacts list and you can start sharing data with each other.') }}</p>
-		
+
 		<div class="form-field">
-			<NcTextField type="text"
+			<NcTextField
+				type="text"
 				:label="t('contacts', 'Invite label (for your reference)')"
 				:placeholder="t('contacts', 'e.g. Mahdi from OCM')"
-				:value="ocmInvite.note"
+				:model-value="ocmInvite.note"
 				:disabled="loadingUpdate"
 				data-testid="ocm-invite-note-input"
 				@input="setNote" />
-			<p class="hint">{{ t('contacts', 'A name or note to help you identify this invite') }}</p>
+			<p class="hint">
+				{{ t('contacts', 'A name or note to help you identify this invite') }}
+			</p>
 		</div>
 
 		<div class="email-section">
 			<!-- Only show toggle if optional mail is enabled -->
 			<label v-if="optionalMailEnabled" class="email-toggle">
-				<input type="checkbox" v-model="sendEmail" :disabled="loadingUpdate" data-testid="ocm-invite-send-email-checkbox">
+				<input
+					v-model="sendEmail"
+					type="checkbox"
+					:disabled="loadingUpdate"
+					data-testid="ocm-invite-send-email-checkbox">
 				<span>{{ t('contacts', 'Send invite via email') }}</span>
 			</label>
 			<div v-if="showEmailFields" class="email-fields">
@@ -30,7 +37,7 @@
 					type="email"
 					:label="emailLabel"
 					:placeholder="t('contacts', 'email@example.com')"
-					:value="ocmInvite.email"
+					:model-value="ocmInvite.email"
 					:required="emailRequired"
 					:disabled="loadingUpdate"
 					inputmode="email"
@@ -45,11 +52,17 @@
 					data-testid="ocm-invite-message-input" />
 				<!-- CC checkbox - only show if enabled in config -->
 				<label v-if="ccSenderEnabled" class="cc-toggle">
-					<input type="checkbox" v-model="ccSender" :disabled="loadingUpdate" data-testid="ocm-invite-cc-sender-checkbox">
+					<input
+						v-model="ccSender"
+						type="checkbox"
+						:disabled="loadingUpdate"
+						data-testid="ocm-invite-cc-sender-checkbox">
 					<span>{{ t('contacts', 'Also send a copy of this invite to me') }}</span>
 				</label>
 			</div>
-			<p v-if="optionalMailEnabled && !sendEmail" class="hint">{{ t('contacts', 'If you do not send an email, you will need to share the invite link yourself.') }}</p>
+			<p v-if="optionalMailEnabled && !sendEmail" class="hint">
+				{{ t('contacts', 'If you do not send an email, you will need to share the invite link yourself.') }}
+			</p>
 		</div>
 
 		<div class="actions">
@@ -59,8 +72,8 @@
 </template>
 
 <script>
-import { NcTextField, NcTextArea } from '@nextcloud/vue'
 import { loadState } from '@nextcloud/initial-state'
+import { NcTextArea, NcTextField } from '@nextcloud/vue'
 
 export default {
 	name: 'OcmInviteForm',
@@ -68,16 +81,19 @@ export default {
 		NcTextField,
 		NcTextArea,
 	},
+
 	props: {
 		ocmInvite: {
 			type: Object,
 			required: true,
 		},
+
 		loadingUpdate: {
 			type: Boolean,
 			default: false,
 		},
 	},
+
 	emits: ['update:ocmInvite'],
 	data() {
 		const config = loadState('contacts', 'ocmInvitesConfig', {
@@ -92,29 +108,35 @@ export default {
 			ccSenderEnabled: config.ccSender,
 		}
 	},
+
 	computed: {
 		showEmailFields() {
 			// Always show if optional mail is disabled (email required)
 			// Otherwise show based on sendEmail toggle
 			return !this.optionalMailEnabled || this.sendEmail
 		},
+
 		emailRequired() {
 			return !this.optionalMailEnabled || this.sendEmail
 		},
+
 		emailLabel() {
 			return this.emailRequired
 				? this.t('contacts', 'Recipient email (required)')
 				: this.t('contacts', 'Recipient email')
 		},
+
 		messageModel: {
 			get() {
 				return this.ocmInvite.message ?? ''
 			},
+
 			set(value) {
 				this.updateInvite({ message: value })
 			},
 		},
 	},
+
 	watch: {
 		sendEmail: {
 			immediate: true,
@@ -132,23 +154,28 @@ export default {
 				this.updateInvite(patch)
 			},
 		},
+
 		ccSender(newVal) {
 			this.updateInvite({ ccSender: newVal })
 		},
 	},
+
 	methods: {
 		updateInvite(patch) {
 			this.$emit('update:ocmInvite', { ...this.ocmInvite, ...patch })
 		},
+
 		setNote(e) {
 			this.updateInvite({ note: e.target.value })
 		},
+
 		setEmail(e) {
 			this.updateInvite({ email: e.target.value })
 		},
 	},
 }
 </script>
+
 <style lang="scss" scoped>
 .contact-header__infos {
 	margin: 1em;

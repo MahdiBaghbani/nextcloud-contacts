@@ -14,7 +14,7 @@
 				type="email"
 				:label="t('contacts', 'Recipient email (required)')"
 				:placeholder="t('contacts', 'email@example.com')"
-				:value="email"
+				:model-value="email"
 				:error="Boolean(error)"
 				:helper-text="error || ''"
 				:required="true"
@@ -34,14 +34,22 @@
 		</div>
 
 		<div class="actions">
-			<NcButton variant="tertiary" :disabled="loading" data-testid="ocm-invite-attach-email-cancel-btn" @click="onCancel">
+			<NcButton
+				variant="tertiary"
+				:disabled="loading"
+				data-testid="ocm-invite-attach-email-cancel-btn"
+				@click="onCancel">
 				{{ t('contacts', 'Cancel') }}
 			</NcButton>
-			<NcButton variant="primary" :disabled="!canSubmit" data-testid="ocm-invite-attach-email-submit-btn" @click="onSubmit">
+			<NcButton
+				variant="primary"
+				:disabled="!canSubmit"
+				data-testid="ocm-invite-attach-email-submit-btn"
+				@click="onSubmit">
 				<template #icon>
 					<EmailFastOutlineIcon :size="20" />
 				</template>
-				{{ loading ? t('contacts', 'Sending...') : t('contacts', 'Send') }}
+				{{ loading ? t('contacts', 'Sending…') : t('contacts', 'Send') }}
 			</NcButton>
 		</div>
 	</div>
@@ -59,16 +67,19 @@ export default {
 		NcTextField,
 		EmailFastOutlineIcon,
 	},
+
 	props: {
 		invite: {
 			type: Object,
 			required: true,
 		},
+
 		loading: {
 			type: Boolean,
 			default: false,
 		},
 	},
+
 	emits: ['submit', 'cancel'],
 	data() {
 		return {
@@ -77,11 +88,13 @@ export default {
 			error: '',
 		}
 	},
+
 	computed: {
 		canSubmit() {
 			return !this.loading && this.email.trim().length > 0
 		},
 	},
+
 	mounted() {
 		// NcModal activates its focus trap on nextTick, then yields to the
 		// browser. Two animation frames is enough to land focus inside the
@@ -92,11 +105,13 @@ export default {
 			})
 		})
 	},
+
 	methods: {
 		onEmailInput(event) {
 			this.email = event.target.value
 			this.error = ''
 		},
+
 		onSubmit() {
 			const email = this.email.trim()
 			if (email.length === 0) {
@@ -105,6 +120,7 @@ export default {
 			}
 			this.$emit('submit', { email, message: this.message })
 		},
+
 		onCancel() {
 			this.$emit('cancel')
 		},

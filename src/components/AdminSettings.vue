@@ -74,6 +74,7 @@ export default {
 				showError(t('contacts', 'Could not save the setting'))
 			})
 		},
+
 		updateOcmSetting(key, value) {
 			axios.put(generateUrl('apps/contacts/ocm/admin/settings/{key}', { key }), {
 				value: Boolean(value),

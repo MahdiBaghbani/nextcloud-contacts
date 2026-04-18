@@ -23,7 +23,6 @@
 			<slot name="accept-invite-actions" />
 		</div>
 	</div>
-
 </template>
 
 <script>
@@ -35,13 +34,15 @@ export default {
 			type: String,
 			required: true,
 		},
+
 		provider: {
 			type: String,
 			required: true,
 		},
-	}
+	},
 }
 </script>
+
 <style lang="scss" scoped>
 .contact-header__infos {
 	margin: 1em;

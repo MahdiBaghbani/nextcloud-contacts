@@ -1,142 +1,159 @@
 <template>
-  <div class="ocm_manual_form">
-    <h5 class="">
-      {{ t("contacts", "Accept an invite to share contact information") }}
-    </h5>
-    <p>
-      {{
-        t(
-          "contacts",
-          "After you accept, both of you will appear in each other's contacts list and you can start sharing data with each other."
-        )
-      }}
-    </p>
+	<div class="ocm_manual_form">
+		<h5 class="">
+			{{ t("contacts", "Accept an invite to share contact information") }}
+		</h5>
+		<p>
+			{{
+				t(
+					"contacts",
+					"After you accept, both of you will appear in each other's contacts list and you can start sharing data with each other.",
+				)
+			}}
+		</p>
 
-    <div class="ocm_manual_inputs">
-      <NcTextField
-        v-model="invite"
-        :label="t('contacts', 'Invite code or link (required)')"
-        type="text"
-        :error="Boolean(error)"
-        :helper-text="error || t('contacts', 'Paste an invite link, invite code (token@provider), or encoded invite')"
-        :required="true"
-      />
+		<div class="ocm_manual_inputs">
+			<NcTextField
+				v-model="invite"
+				:label="t('contacts', 'Invite code or link (required)')"
+				type="text"
+				:error="Boolean(error)"
+				:helper-text="error || t('contacts', 'Paste an invite link, invite code (token@provider), or encoded invite')"
+				:required="true" />
 
-      <div class="ocm_manual_buttons">
-        <NcButton :disabled="loadingUpdate" @click="accept">
-          <template #icon>
-            <IconLoading v-if="loadingUpdate" :size="20" />
-            <IconCheck v-else :size="20" />
-          </template>
-          {{ t("contacts", "Accept") }}
-        </NcButton>
-        <NcButton :disabled="loadingUpdate" @click="cancel">
-          <template #icon>
-            <IconLoading v-if="loadingUpdate" :size="20" />
-            <IconCancel v-else :size="20" />
-          </template>
-          {{ t("contacts", "Cancel") }}
-        </NcButton>
-      </div>
-    </div>
-  </div>
+			<div class="ocm_manual_buttons">
+				<NcButton :disabled="loadingUpdate" @click="accept">
+					<template #icon>
+						<NcLoadingIcon v-if="loadingUpdate" :size="20" />
+						<IconCheck v-else :size="20" />
+					</template>
+					{{ t("contacts", "Accept") }}
+				</NcButton>
+				<NcButton :disabled="loadingUpdate" @click="cancel">
+					<template #icon>
+						<NcLoadingIcon v-if="loadingUpdate" :size="20" />
+						<IconCancel v-else :size="20" />
+					</template>
+					{{ t("contacts", "Cancel") }}
+				</NcButton>
+			</div>
+		</div>
+	</div>
 </template>
 
 <script>
-import NcTextField from "@nextcloud/vue/components/NcTextField";
-import NcButton from "@nextcloud/vue/components/NcButton";
-import NcLoadingIcon from "@nextcloud/vue/components/NcLoadingIcon";
-import IconCheck from "vue-material-design-icons/Check.vue";
-import IconCancel from "vue-material-design-icons/Cancel.vue";
+import NcButton from '@nextcloud/vue/components/NcButton'
+import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
+import NcTextField from '@nextcloud/vue/components/NcTextField'
+import IconCancel from 'vue-material-design-icons/Cancel.vue'
+import IconCheck from 'vue-material-design-icons/Check.vue'
 
 export default {
-  name: "OcmAcceptForm",
-  components: {
-    NcTextField,
-    NcButton,
-    IconLoading: NcLoadingIcon,
-    IconCheck,
-    IconCancel,
-  },
-  props: {
-    loadingUpdate: {
-      type: Boolean,
-      default: false,
-    },
-  },
-  emits: ["accept", "cancel", "parse-error"],
-  data() {
-    return {
-      invite: "",
-      error: "",
-    };
-  },
-  methods: {
-    parseInvite(str) {
-      // Try to parse token@provider format
-      function tryParseTokenProvider(s) {
-        const idx = s.lastIndexOf("@");
-        if (idx === -1) return null;
-        const token = s.slice(0, idx).trim();
-        const provider = s.slice(idx + 1).trim();
-        if (!token || !provider) return null;
-        return { provider, token };
-      }
+	name: 'OcmAcceptForm',
+	components: {
+		NcTextField,
+		NcButton,
+		NcLoadingIcon,
+		IconCheck,
+		IconCancel,
+	},
 
-      // Try to parse as URL with token query parameter
-      function tryParseUrl(s) {
-        try {
-          const url = new URL(s);
-          const token = url.searchParams.get('token');
-          if (!token) return null;
-          // Provider from query param or URL host
-          const provider = url.searchParams.get('provider') || url.host;
-          if (!provider) return null;
-          return { provider, token };
-        } catch (e) {
-          return null;
-        }
-      }
+	props: {
+		loadingUpdate: {
+			type: Boolean,
+			default: false,
+		},
+	},
 
-      let s = String(str || "").trim();
-      
-      // 1. Try token@provider format first
-      let result = tryParseTokenProvider(s);
-      if (result) return result;
+	emits: ['accept', 'cancel', 'parse-error'],
+	data() {
+		return {
+			invite: '',
+			error: '',
+		}
+	},
 
-      // 2. Try base64 decoding then token@provider
-      try {
-        const decoded = atob(s);
-        result = tryParseTokenProvider(decoded);
-        if (result) return result;
-      } catch (e) {
-        // Not base64, continue
-      }
+	methods: {
+		parseInvite(str) {
+			// Try to parse token@provider format
+			function tryParseTokenProvider(s) {
+				const idx = s.lastIndexOf('@')
+				if (idx === -1) {
+					return null
+				}
+				const token = s.slice(0, idx).trim()
+				const provider = s.slice(idx + 1).trim()
+				if (!token || !provider) {
+					return null
+				}
+				return { provider, token }
+			}
 
-      // 3. Try as URL
-      result = tryParseUrl(s);
-      if (result) return result;
+			// Try to parse as URL with token query parameter
+			function tryParseUrl(s) {
+				try {
+					const url = new URL(s)
+					const token = url.searchParams.get('token')
+					if (!token) {
+						return null
+					}
+					// Provider from query param or URL host
+					const provider = url.searchParams.get('provider') || url.host
+					if (!provider) {
+						return null
+					}
+					return { provider, token }
+				} catch (e) {
+					return null
+				}
+			}
 
-      throw new Error("Could not parse invite");
-    },
+			const s = String(str || '').trim()
 
-    accept() {
-      this.error = "";
-      try {
-        const { provider, token } = this.parseInvite(this.invite);
-        this.$emit("accept", { provider, token });
-      } catch (e) {
-        this.error = this.t("contacts", "This invite does not look valid. Check that you copied it completely or ask the sender to generate a new one.");
-        this.$emit("parse-error", { message: this.error });
-      }
-    },
+			// 1. Try token@provider format first
+			let result = tryParseTokenProvider(s)
+			if (result) {
+				return result
+			}
 
-    cancel() {
-      this.$emit("cancel");
-    },
-  },
-};
+			// 2. Try base64 decoding then token@provider
+			try {
+				const decoded = atob(s)
+				result = tryParseTokenProvider(decoded)
+				if (result) {
+					return result
+				}
+			} catch (e) {
+				// Not base64, continue
+			}
+
+			// 3. Try as URL
+			result = tryParseUrl(s)
+			if (result) {
+				return result
+			}
+
+			throw new Error('Could not parse invite')
+		},
+
+		accept() {
+			this.error = ''
+			try {
+				const { provider, token } = this.parseInvite(this.invite)
+				this.$emit('accept', { provider, token })
+			} catch (e) {
+				this.error = this.t('contacts', 'This invite does not look valid. Check that you copied it completely or ask the sender to generate a new one.')
+				this.$emit('parse-error', { message: this.error })
+			}
+		},
+
+		cancel() {
+			this.$emit('cancel')
+		},
+	},
+}
 </script>
+
 <style lang="scss" scoped>
 .ocm_manual_buttons {
   display: flex;

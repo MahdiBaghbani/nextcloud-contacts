@@ -6,15 +6,16 @@
 <template>
 	<Content :app-name="appName">
 		<!-- new-contact-button + navigation + settings -->
-		<RootNavigation 
+		<RootNavigation
 			:contacts-list="contactsList"
 			:loading="loadingContacts || loadingCircles || loadingInvites"
 			:selected-group="selectedGroup"
 			:selected-contact="selectedContact">
 			<div class="import-and-new-contact-buttons">
-				<SettingsImportContacts v-if="
-					!loadingContacts && isEmptyGroup && !isChartView && !isCirclesView
-				" />
+				<SettingsImportContacts
+					v-if="
+						!loadingContacts && isEmptyGroup && !isChartView && !isCirclesView
+					" />
 				<!-- new-contact-button -->
 				<NcButton
 					v-if="!loadingContacts"
@@ -28,7 +29,8 @@
 					{{ isCirclesView ? t('contacts', 'Add member') : t('contacts', 'New contact') }}
 				</NcButton>
 				<!-- invite-contact-button -->
-				<NcButton v-if="isOcmInvitesEnabled && !loadingInvites"
+				<NcButton
+					v-if="isOcmInvitesEnabled && !loadingInvites"
 					variant="secondary"
 					:wide="true"
 					:disabled="!defaultAddressbook"
@@ -39,7 +41,8 @@
 					{{ t("contacts", "Invite contact") }}
 				</NcButton>
 				<!-- accept-invite-button -->
-				<NcButton v-if="isOcmInvitesEnabled && !loadingInvites"
+				<NcButton
+					v-if="isOcmInvitesEnabled && !loadingInvites"
 					variant="secondary"
 					:wide="true"
 					:disabled="!defaultAddressbook"
@@ -62,10 +65,12 @@
 		<ChartContent
 			v-else-if="selectedChart"
 			:contacts-list="contacts" />
-		<OcmInvitesContent v-if="isInvitesView"
+		<OcmInvitesContent
+			v-if="isInvitesView"
 			:invites-list="invitesList"
 			:loading="loadingInvites" />
-		<ContactsContent v-else
+		<ContactsContent
+			v-else
 			:contacts-list="contactsList"
 			:loading="loadingContacts"
 			@new-contact="newContact" />
@@ -80,14 +85,16 @@
 		</Modal>
 
 		<!-- new invite form -->
-		<Modal v-if="showNewInviteForm"
+		<Modal
+			v-if="showNewInviteForm"
 			:name="t('contacts', 'Invite someone to share contacts')"
 			:no-close="loadingUpdate"
 			@close="cancelNewInvite">
 			<OcmInviteForm v-model:ocm-invite="ocmInvite" :loading-update="loadingUpdate">
 				<template #new-invite-actions>
 					<div class="new-invite-form__buttons-row">
-						<NcButton :disabled="loadingUpdate"
+						<NcButton
+							:disabled="loadingUpdate"
 							data-testid="ocm-invite-new-submit-btn"
 							@click="sendNewInvite">
 							<template #icon>
@@ -96,7 +103,8 @@
 							</template>
 							{{ newInvitePrimaryLabel }}
 						</NcButton>
-						<NcButton :disabled="loadingUpdate"
+						<NcButton
+							:disabled="loadingUpdate"
 							data-testid="ocm-invite-new-cancel-btn"
 							@click="cancelNewInvite">
 							<template #icon>
@@ -109,7 +117,8 @@
 				</template>
 			</OcmInviteForm>
 		</Modal>
-		<Modal v-if="showManualInvite"
+		<Modal
+			v-if="showManualInvite"
 			:name="t('contacts', 'Accept an invite')"
 			:no-close="loadingUpdate"
 			@close="manualInviteCancel">
@@ -122,7 +131,8 @@
 		</Modal>
 
 		<!-- invite accept dialog -->
-		<Modal v-if="showInviteAcceptDialog"
+		<Modal
+			v-if="showInviteAcceptDialog"
 			:name="t('contacts', 'Accept invite')"
 			:no-close="loadingUpdate">
 			<OcmInviteAccept :token="inviteToken" :provider="inviteProvider">
@@ -157,42 +167,42 @@ import { getCurrentUser } from '@nextcloud/auth'
 import axios from '@nextcloud/axios'
 import { showError } from '@nextcloud/dialogs'
 import { emit } from '@nextcloud/event-bus'
+import { loadState } from '@nextcloud/initial-state'
+import { generateUrl } from '@nextcloud/router'
 import {
 	NcContent as Content,
 	NcLoadingIcon as IconLoading,
 	NcModal as Modal,
 	NcButton,
 } from '@nextcloud/vue'
-import { loadState } from '@nextcloud/initial-state'
 import ICAL from 'ical.js'
+import IconAccountArrowDownOutline from 'vue-material-design-icons/AccountArrowDownOutline.vue'
+import IconAccountSwitchOutline from 'vue-material-design-icons/AccountSwitchOutline.vue'
+import IconCancel from 'vue-material-design-icons/Cancel.vue'
+import IconCheck from 'vue-material-design-icons/Check.vue'
 import IconAdd from 'vue-material-design-icons/Plus.vue'
 import ChartContent from '../components/AppContent/ChartContent.vue'
 import CircleContent from '../components/AppContent/CircleContent.vue'
 import ContactsContent from '../components/AppContent/ContactsContent.vue'
+import OcmInvitesContent from '../components/AppContent/OcmInvitesContent.vue'
 import RootNavigation from '../components/AppNavigation/RootNavigation.vue'
 import SettingsImportContacts from '../components/AppNavigation/Settings/SettingsImportContacts.vue'
 import ContactsPicker from '../components/EntityPicker/ContactsPicker.vue'
+import OcmAcceptForm from '../components/Ocm/OcmAcceptForm.vue'
+import OcmInviteAccept from '../components/Ocm/OcmInviteAccept.vue'
+import OcmInviteForm from '../components/Ocm/OcmInviteForm.vue'
 import ImportView from './Processing/ImportView.vue'
 import IsMobileMixin from '../mixins/IsMobileMixin.ts'
 import RouterMixin from '../mixins/RouterMixin.js'
-import { GROUP_ALL_CONTACTS, GROUP_NO_GROUP_CONTACTS, ROUTE_CIRCLE, ROUTE_USER_GROUP, GROUP_ALL_OCM_INVITES, ROUTE_NAME_ALL_OCM_INVITES, ROUTE_NAME_INVITE_ACCEPT_DIALOG, ROUTE_NAME_OCM_INVITE } from '../models/constants.ts'
+import { GROUP_ALL_CONTACTS, GROUP_ALL_OCM_INVITES, GROUP_NO_GROUP_CONTACTS, ROUTE_CIRCLE, ROUTE_NAME_ALL_OCM_INVITES, ROUTE_NAME_INVITE_ACCEPT_DIALOG, ROUTE_NAME_OCM_INVITE, ROUTE_USER_GROUP } from '../models/constants.ts'
 import Contact from '../models/contact.js'
 import rfcProps from '../models/rfcProps.js'
 import client from '../services/cdav.js'
 import isCirclesEnabled from '../services/isCirclesEnabled.js'
+import isOcmInvitesEnabled from '../services/isOcmInvitesEnabled.js'
+import logger from '../services/logger.js'
 import usePrincipalsStore from '../store/principals.js'
 import useUserGroupStore from '../store/userGroup.ts'
-import logger from '../services/logger.js'
-import IconAccountSwitchOutline from 'vue-material-design-icons/AccountSwitchOutline.vue'
-import IconAccountArrowDownOutline from 'vue-material-design-icons/AccountArrowDownOutline.vue'
-import IconCancel from 'vue-material-design-icons/Cancel.vue'
-import IconCheck from 'vue-material-design-icons/Check.vue'
-import isOcmInvitesEnabled from '../services/isOcmInvitesEnabled.js'
-import { generateUrl } from '@nextcloud/router'
-import OcmInviteAccept from '../components/Ocm/OcmInviteAccept.vue'
-import OcmInviteForm from '../components/Ocm/OcmInviteForm.vue'
-import OcmAcceptForm from '../components/Ocm/OcmAcceptForm.vue'
-import OcmInvitesContent from '../components/AppContent/OcmInvitesContent.vue'
 
 const inviteToken = loadState('contacts', 'inviteToken', '')
 const inviteProvider = loadState('contacts', 'inviteProvider', '')
@@ -332,8 +342,8 @@ const _default = {
 			// make sure that the contacts list is also returned when we're viewing invites
 			if (
 				this.selectedGroup === GROUP_ALL_CONTACTS
-        || this.$route.name === ROUTE_NAME_OCM_INVITE
-        || this.$route.name === ROUTE_NAME_ALL_OCM_INVITES
+				|| this.$route.name === ROUTE_NAME_OCM_INVITE
+				|| this.$route.name === ROUTE_NAME_ALL_OCM_INVITES
 			) {
 				return this.sortedContacts
 			} else if (this.selectedGroup === GROUP_NO_GROUP_CONTACTS) {
@@ -355,7 +365,7 @@ const _default = {
 		isInvitesView() {
 			return (
 				this.$route.name === ROUTE_NAME_OCM_INVITE
-        || this.$route.name === ROUTE_NAME_ALL_OCM_INVITES
+				|| this.$route.name === ROUTE_NAME_ALL_OCM_INVITES
 			)
 		},
 
@@ -388,18 +398,22 @@ const _default = {
 		// watch url change and group select
 		selectedGroup() {
 			if (!this.isMobile && !this.selectedChart && !this.selectedInvite) {
-				this.$route.name === ROUTE_NAME_ALL_OCM_INVITES
-					? this.selectFirstOcmInviteIfNone()
-					: this.selectFirstContactIfNone()
+				if (this.$route.name === ROUTE_NAME_ALL_OCM_INVITES) {
+					this.selectFirstOcmInviteIfNone()
+				} else {
+					this.selectFirstContactIfNone()
+				}
 			}
 		},
 
 		// watch url change and contact select
 		selectedContact() {
 			if (!this.isMobile && !this.selectedChart && !this.selectedInvite) {
-				this.$route.name === ROUTE_NAME_ALL_OCM_INVITES
-					? this.selectFirstOcmInviteIfNone()
-					: this.selectFirstContactIfNone()
+				if (this.$route.name === ROUTE_NAME_ALL_OCM_INVITES) {
+					this.selectFirstOcmInviteIfNone()
+				} else {
+					this.selectFirstContactIfNone()
+				}
 			}
 		},
 	},
@@ -563,10 +577,14 @@ const _default = {
 				})).then(() => {
 				this.loadingContacts = false
 				if (!this.isMobile && !this.selectedChart) {
-					this.$route.name === ROUTE_NAME_OCM_INVITE
-          || this.$route.name === ROUTE_NAME_ALL_OCM_INVITES
-						? this.selectFirstOcmInviteIfNone()
-						: this.selectFirstContactIfNone()
+					if (
+						this.$route.name === ROUTE_NAME_OCM_INVITE
+						|| this.$route.name === ROUTE_NAME_ALL_OCM_INVITES
+					) {
+						this.selectFirstOcmInviteIfNone()
+					} else {
+						this.selectFirstContactIfNone()
+					}
 				}
 			})
 		},
@@ -614,12 +632,12 @@ const _default = {
 					&& GROUP_NO_GROUP_CONTACTS !== this.selectedGroup
 					&& ROUTE_CIRCLE !== this.selectedGroup
 					&& ROUTE_USER_GROUP !== this.selectedGroup) {
-						// no 'group not found' error when displaying invite accept dialog
-						if (this.$route.name !== ROUTE_NAME_INVITE_ACCEPT_DIALOG) {
-							showError(t('contacts', 'Group {group} not found', { group: this.selectedGroup }))
-						}
-						this.$router.push({ name: 'root' })
-						return
+					// no 'group not found' error when displaying invite accept dialog
+					if (this.$route.name !== ROUTE_NAME_INVITE_ACCEPT_DIALOG) {
+						showError(t('contacts', 'Group {group} not found', { group: this.selectedGroup }))
+					}
+					this.$router.push({ name: 'root' })
+					return
 				}
 
 				if (Object.keys(this.contactsList).length) {
@@ -638,9 +656,7 @@ const _default = {
 		 */
 		selectFirstOcmInviteIfNone() {
 			const inList
-        = this.invitesList.findIndex(
-        	(invite) => invite.key === this.selectedInvite,
-        ) > -1
+				= this.invitesList.findIndex((invite) => invite.key === this.selectedInvite) > -1
 			if (this.selectedInvite === undefined || !inList) {
 				if (Object.keys(this.invitesList).length) {
 					this.$router.push({

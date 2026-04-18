@@ -95,7 +95,8 @@
 			</AppNavigationItem>
 
 			<!-- All OCM invites -->
-			<AppNavigationItem v-if="isOcmInvitesEnabled"
+			<AppNavigationItem
+				v-if="isOcmInvitesEnabled"
 				id="ocm-invites"
 				:name="GROUP_ALL_OCM_INVITES"
 				:to="{
@@ -107,7 +108,8 @@
 					<IconAccountSwitchOutline :size="20" />
 				</template>
 				<template #counter>
-					<NcCounterBubble v-if="ocmInvites.length"
+					<NcCounterBubble
+						v-if="ocmInvites.length"
 						:count="ocmInvites.length" />
 				</template>
 			</AppNavigationItem>
@@ -219,8 +221,6 @@
 <script>
 import { showError } from '@nextcloud/dialogs'
 import { emit } from '@nextcloud/event-bus'
-import { CHART_ALL_CONTACTS, CIRCLE_DESC, CONTACTS_SETTINGS, ELLIPSIS_COUNT, GROUP_ALL_CONTACTS, GROUP_NO_GROUP_CONTACTS, GROUP_RECENTLY_CONTACTED, GROUP_ALL_OCM_INVITES, ROUTE_NAME_ALL_OCM_INVITES } from '../../models/constants.ts'
-
 import {
 	NcActionInput as ActionInput,
 	NcActionText as ActionText,
@@ -238,6 +238,7 @@ import IconUserFilled from 'vue-material-design-icons/Account.vue'
 import IconContactFilled from 'vue-material-design-icons/AccountMultiple.vue'
 import IconContact from 'vue-material-design-icons/AccountMultipleOutline.vue'
 import IconUser from 'vue-material-design-icons/AccountOutline.vue'
+import IconAccountSwitchOutline from 'vue-material-design-icons/AccountSwitchOutline.vue'
 import IconError from 'vue-material-design-icons/AlertCircleOutline.vue'
 import Cog from 'vue-material-design-icons/CogOutline.vue'
 import IconAdd from 'vue-material-design-icons/Plus.vue'
@@ -247,11 +248,11 @@ import CircleNavigationItem from './CircleNavigationItem.vue'
 import ContactsSettings from './ContactsSettings.vue'
 import GroupNavigationItem from './GroupNavigationItem.vue'
 import RouterMixin from '../../mixins/RouterMixin.js'
+import { CHART_ALL_CONTACTS, CIRCLE_DESC, CONTACTS_SETTINGS, ELLIPSIS_COUNT, GROUP_ALL_CONTACTS, GROUP_ALL_OCM_INVITES, GROUP_NO_GROUP_CONTACTS, GROUP_RECENTLY_CONTACTED, ROUTE_NAME_ALL_OCM_INVITES } from '../../models/constants.ts'
 import isCirclesEnabled from '../../services/isCirclesEnabled.js'
 import isContactsInteractionEnabled from '../../services/isContactsInteractionEnabled.js'
-import useUserGroupStore from '../../store/userGroup.ts'
-import IconAccountSwitchOutline from 'vue-material-design-icons/AccountSwitchOutline.vue'
 import isOcmInvitesEnabled from '../../services/isOcmInvitesEnabled.js'
+import useUserGroupStore from '../../store/userGroup.ts'
 
 export default {
 	name: 'RootNavigation',
@@ -351,6 +352,7 @@ export default {
 		userGroups() {
 			return this.userGroupStore.userGroupList
 		},
+
 		ocmInvites() {
 			return this.$store.getters.getSortedOcmInvites
 		},

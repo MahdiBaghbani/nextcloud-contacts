@@ -7,26 +7,26 @@
 	<AppContentList class="content-list">
 		<div class="contacts-list__header">
 			<div class="search-contacts-field">
-				<input v-model="query" type="text" :placeholder="t('contacts', 'Search invites …')">
+				<input v-model="query" type="text" :placeholder="t('contacts', 'Search invites …')">
 			</div>
 		</div>
-		<VList v-slot="{ item, index }"
+		<VList
+			v-slot="{ item, index }"
 			ref="scroller"
 			class="contacts-list"
 			:data="filteredList">
-			<OcmInvitesListItem 
+			<OcmInvitesListItem
 				:index="index"
 				:source="item"
-				:reload-bus="reloadBus"
-			/>
+				:reload-bus="reloadBus" />
 		</VList>
 	</AppContentList>
 </template>
 
 <script>
 import { NcAppContentList as AppContentList } from '@nextcloud/vue'
-import OcmInvitesListItem from './OcmInvitesListItem.vue'
 import { VList } from 'virtua/vue'
+import OcmInvitesListItem from './OcmInvitesListItem.vue'
 import { getOcmInviteSearchData } from '../../models/ocminvite.ts'
 
 const _default = {
@@ -73,10 +73,10 @@ const _default = {
 		},
 		filteredList() {
 			let invitesList = this.list
-				.filter(item => this.matchSearch(this.invites[item.key]))
-				.map(item => this.invites[item.key])
+				.filter((item) => this.matchSearch(this.invites[item.key]))
+				.map((item) => this.invites[item.key])
 
-			invitesList = invitesList.filter(item => item !== undefined)
+			invitesList = invitesList.filter((item) => item !== undefined)
 			return invitesList
 		},
 	},
@@ -114,7 +114,7 @@ const _default = {
 
 			// if the item is not visible in the list or barely visible
 			if (!(item && item.getBoundingClientRect().y > 50)) { // header height
-				const index = this.list.findIndex(contact => contact.key === key)
+				const index = this.list.findIndex((contact) => contact.key === key)
 				if (index > -1) {
 					this.$refs.scroller.scrollToIndex(index)
 				}
@@ -144,7 +144,7 @@ const _default = {
 		},
 	},
 }
-export default _default;
+export default _default
 
 </script>
 

@@ -5,7 +5,7 @@
 
 <template>
 	<AppContent v-if="loading">
-		<EmptyContent class="empty-content" :name="t('contacts', 'Loading invites …')">
+		<EmptyContent class="empty-content" :name="t('contacts', 'Loading invites …')">
 			<template #icon>
 				<IconLoading :size="20" />
 			</template>
@@ -23,32 +23,31 @@
 	<AppContent v-else :show-details="showDetails">
 		<!-- OCM invites list -->
 		<template #list>
-			<OcmInvitesList :list="invitesList"
+			<OcmInvitesList
+				:list="invitesList"
 				:invites="invites"
 				:search-query="searchQuery"
-				:reload-bus="reloadBus" 
-				@onRevoke="onRevoke" />
+				:reload-bus="reloadBus"
+				@on-revoke="onRevoke" />
 		</template>
 
 		<!-- OCM invite details -->
 		<OcmInviteDetails :invite-key="selectedInvite" />
-
-</AppContent>
+	</AppContent>
 </template>
 
 <script>
+import { generateUrl } from '@nextcloud/router'
 import {
 	NcAppContent as AppContent,
 	NcEmptyContent as EmptyContent,
 	NcLoadingIcon as IconLoading,
 } from '@nextcloud/vue'
-
-import { generateUrl } from '@nextcloud/router'
+import mitt from 'mitt'
 import IconAccountSwitchOutline from 'vue-material-design-icons/AccountSwitchOutline.vue'
 import OcmInviteDetails from '../Ocm/OcmInviteDetails.vue'
 import OcmInvitesList from '../Ocm/OcmInvitesList.vue'
 import RouterMixin from '../../mixins/RouterMixin.js'
-import mitt from 'mitt'
 
 export default {
 	name: 'OcmInvitesContent',
@@ -88,6 +87,7 @@ export default {
 		invites() {
 			return this.$store.getters.getOcmInvites
 		},
+
 		sortedInvites() {
 			return this.$store.getters.getSortedOcmInvites
 		},
@@ -111,6 +111,7 @@ export default {
 	},
 }
 </script>
+
 <style lang="scss" scoped>
 .empty-content {
 	height: 100%;

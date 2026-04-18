@@ -4,14 +4,16 @@
  */
 
 import type { ActionContext, Module } from 'vuex'
+
 import axios from '@nextcloud/axios'
 import { generateUrl } from '@nextcloud/router'
-import logger from '../services/logger.js'
 import {
 	type OcmInviteData,
 	type OcmInviteEntry,
+
 	toOcmInviteEntry,
 } from '../models/ocminvite.ts'
+import logger from '../services/logger.js'
 
 interface SortedEntry {
 	key: string
@@ -41,13 +43,15 @@ interface AttachEmailPayload {
 
 const sortData = (a: SortedEntry, b: SortedEntry): number => a.key.localeCompare(b.key)
 
-const state = (): OcmInvitesState => ({
+function state(): OcmInvitesState {
+	return {
 	// Using objects for performance
 	// https://codepen.io/skjnldsv/pen/ZmKvQo
-	ocmInvites: {},
-	sortedOcmInvites: [],
-	orderKey: 'recipientEmail',
-})
+		ocmInvites: {},
+		sortedOcmInvites: [],
+		orderKey: 'recipientEmail',
+	}
+}
 
 const getters = {
 	getOcmInvite: (state: OcmInvitesState) => (key: string): OcmInviteEntry | undefined => state.ocmInvites[key],

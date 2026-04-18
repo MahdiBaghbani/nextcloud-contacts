@@ -6,7 +6,10 @@
 <template>
 	<NcAppContentDetails>
 		<!-- nothing selected or invite not found -->
-		<NcEmptyContent v-if="!invite" class="empty-content" :name="t('contacts', 'No invite selected')"
+		<NcEmptyContent
+			v-if="!invite"
+			class="empty-content"
+			:name="t('contacts', 'No invite selected')"
 			:description="t('contacts', 'Select an invite on the list to begin')">
 			<template #icon>
 				<IconAccountSwitchOutline :size="20" />
@@ -16,7 +19,7 @@
 		<template v-else>
 			<div class="invite-details">
 				<h2>{{ t('contacts', 'OCM invite') }}</h2>
-				
+
 				<div class="invite-info">
 					<div v-if="invite.recipientName" class="info-row">
 						<span class="info-label">{{ t('contacts', 'Label') }}</span>
@@ -37,14 +40,17 @@
 				</div>
 
 				<!-- Share buttons -->
-				<details v-if="invite.recipientEmail"
+				<details
+					v-if="invite.recipientEmail"
 					:key="inviteKey"
 					class="share-section share-section--collapsible"
 					data-testid="ocm-invite-share-section">
 					<summary class="share-section__summary">
 						<span>{{ t('contacts', 'More ways to share') }}</span>
 					</summary>
-					<p class="share-hint">{{ t('contacts', 'Useful for chat apps and manual acceptance. The recipient already received the invite by email.') }}</p>
+					<p class="share-hint">
+						{{ t('contacts', 'Useful for chat apps and manual acceptance. The recipient already received the invite by email.') }}
+					</p>
 					<div class="share-buttons">
 						<NcButton variant="secondary" data-testid="ocm-invite-link-copy-btn" @click="copyToClipboard(wayfLink, clipboardKinds.inviteLink)">
 							<template #icon>
@@ -58,7 +64,11 @@
 							</template>
 							{{ t('contacts', 'Copy invite code') }}
 						</NcButton>
-						<NcButton v-if="encodedCopyButtonEnabled" variant="secondary" data-testid="ocm-invite-base64-copy-btn" @click="copyToClipboard(base64InviteString, clipboardKinds.encodedInvite)">
+						<NcButton
+							v-if="encodedCopyButtonEnabled"
+							variant="secondary"
+							data-testid="ocm-invite-base64-copy-btn"
+							@click="copyToClipboard(base64InviteString, clipboardKinds.encodedInvite)">
 							<template #icon>
 								<ContentCopyIcon :size="20" />
 							</template>
@@ -68,7 +78,9 @@
 				</details>
 				<div v-else class="share-section" data-testid="ocm-invite-share-section">
 					<h3>{{ t('contacts', 'Share invite') }}</h3>
-					<p class="share-hint">{{ t('contacts', 'The invite link is the easiest way to share. Invite codes are for manual acceptance.') }}</p>
+					<p class="share-hint">
+						{{ t('contacts', 'The invite link is the easiest way to share. Invite codes are for manual acceptance.') }}
+					</p>
 					<div class="share-buttons">
 						<NcButton variant="secondary" data-testid="ocm-invite-link-copy-btn" @click="copyToClipboard(wayfLink, clipboardKinds.inviteLink)">
 							<template #icon>
@@ -82,7 +94,11 @@
 							</template>
 							{{ t('contacts', 'Copy invite code') }}
 						</NcButton>
-						<NcButton v-if="encodedCopyButtonEnabled" variant="secondary" data-testid="ocm-invite-base64-copy-btn" @click="copyToClipboard(base64InviteString, clipboardKinds.encodedInvite)">
+						<NcButton
+							v-if="encodedCopyButtonEnabled"
+							variant="secondary"
+							data-testid="ocm-invite-base64-copy-btn"
+							@click="copyToClipboard(base64InviteString, clipboardKinds.encodedInvite)">
 							<template #icon>
 								<ContentCopyIcon :size="20" />
 							</template>
@@ -93,7 +109,8 @@
 
 				<!-- Action buttons -->
 				<div class="action-buttons">
-					<NcButton v-if="invite.recipientEmail"
+					<NcButton
+						v-if="invite.recipientEmail"
 						variant="primary"
 						data-testid="ocm-invite-resend-btn"
 						@click="onResend">
@@ -102,7 +119,8 @@
 						</template>
 						{{ t('contacts', 'Resend email') }}
 					</NcButton>
-					<NcButton v-else
+					<NcButton
+						v-else
 						variant="primary"
 						data-testid="ocm-invite-attach-email-btn"
 						@click="openAttachEmailForm">
@@ -111,7 +129,8 @@
 						</template>
 						{{ t('contacts', 'Send via email') }}
 					</NcButton>
-					<NcButton variant="error"
+					<NcButton
+						variant="error"
 						data-testid="ocm-invite-revoke-btn"
 						@click="onRevoke">
 						{{ t('contacts', 'Revoke invite') }}
@@ -120,7 +139,8 @@
 			</div>
 		</template>
 
-		<Modal v-if="showAttachEmailForm"
+		<Modal
+			v-if="showAttachEmailForm"
 			v-model:show="showAttachEmailForm"
 			:name="t('contacts', 'Send invite via email')"
 			:no-close="submittingAttachEmail">
@@ -135,20 +155,18 @@
 
 <script>
 
+import { showError, showSuccess } from '@nextcloud/dialogs'
+import { loadState } from '@nextcloud/initial-state'
+import moment from '@nextcloud/moment'
 import {
+	NcModal as Modal,
 	NcAppContentDetails,
 	NcButton,
 	NcEmptyContent,
-	NcModal as Modal,
 } from '@nextcloud/vue'
-import { showSuccess, showError } from '@nextcloud/dialogs'
-import { loadState } from '@nextcloud/initial-state'
-
+import IconAccountSwitchOutline from 'vue-material-design-icons/AccountSwitchOutline.vue'
 import ContentCopyIcon from 'vue-material-design-icons/ContentCopy.vue'
 import EmailFastOutlineIcon from 'vue-material-design-icons/EmailFastOutline.vue'
-import IconAccountSwitchOutline from 'vue-material-design-icons/AccountSwitchOutline.vue'
-import moment from '@nextcloud/moment'
-
 import OcmAttachEmailForm from './OcmAttachEmailForm.vue'
 
 const dateFormat = 'lll'
@@ -188,16 +206,8 @@ export default {
 			encodedCopyButtonEnabled: config.encodedCopyButton,
 			showAttachEmailForm: false,
 			submittingAttachEmail: false,
-			_isMounted: false,
+			isComponentMounted: false,
 		}
-	},
-
-	mounted() {
-		this._isMounted = true
-	},
-
-	beforeUnmount() {
-		this._isMounted = false
 	},
 
 	computed: {
@@ -208,53 +218,74 @@ export default {
 				encodedInvite: CLIPBOARD_KIND_ENCODED_INVITE,
 			}
 		},
+
 		invite() {
 			return this.$store.getters.getOcmInvite(this.inviteKey)
 		},
+
 		provider() {
 			return window.location.host
 		},
+
 		wayfLink() {
-			if (!this.invite) return ''
+			if (!this.invite) {
+				return ''
+			}
 			return `https://${this.provider}/index.php/apps/contacts/wayf?token=${this.invite.token}`
 		},
+
 		plainInviteString() {
-			if (!this.invite) return ''
+			if (!this.invite) {
+				return ''
+			}
 			return `${this.invite.token}@${this.provider}`
 		},
+
 		base64InviteString() {
-			if (!this.invite) return ''
+			if (!this.invite) {
+				return ''
+			}
 			return btoa(this.plainInviteString)
 		},
+	},
+
+	mounted() {
+		this.isComponentMounted = true
+	},
+
+	beforeUnmount() {
+		this.isComponentMounted = false
 	},
 
 	methods: {
 		formatDate(date) {
 			// moment takes milliseconds
-			return moment(date*1000).format(dateFormat)
+			return moment(date * 1000).format(dateFormat)
 		},
+
 		async copyToClipboard(text, kind) {
 			try {
 				await navigator.clipboard.writeText(text)
 				let message
 				switch (kind) {
-				case CLIPBOARD_KIND_INVITE_CODE:
-					message = this.t('contacts', 'Invite code copied to clipboard')
-					break
-				case CLIPBOARD_KIND_ENCODED_INVITE:
-					message = this.t('contacts', 'Encoded invite copied to clipboard')
-					break
-				case CLIPBOARD_KIND_INVITE_LINK:
-					message = this.t('contacts', 'Invite link copied to clipboard')
-					break
-				default:
-					message = this.t('contacts', 'Copied to clipboard')
+					case CLIPBOARD_KIND_INVITE_CODE:
+						message = this.t('contacts', 'Invite code copied to clipboard')
+						break
+					case CLIPBOARD_KIND_ENCODED_INVITE:
+						message = this.t('contacts', 'Encoded invite copied to clipboard')
+						break
+					case CLIPBOARD_KIND_INVITE_LINK:
+						message = this.t('contacts', 'Invite link copied to clipboard')
+						break
+					default:
+						message = this.t('contacts', 'Copied to clipboard')
 				}
 				showSuccess(message)
 			} catch (error) {
 				showError(this.t('contacts', 'Failed to copy to clipboard'))
 			}
 		},
+
 		async onResend() {
 			try {
 				const response = await this.$store.dispatch('resendOcmInvite', this.invite)
@@ -264,18 +295,22 @@ export default {
 				showError(serverMessage || this.t('contacts', 'Could not resend invite'))
 			}
 		},
+
 		async onRevoke() {
 			await this.$store.dispatch('deleteOcmInvite', this.invite)
 		},
+
 		openAttachEmailForm() {
 			this.showAttachEmailForm = true
 		},
+
 		closeAttachEmailForm() {
 			if (this.submittingAttachEmail) {
 				return
 			}
 			this.showAttachEmailForm = false
 		},
+
 		async onAttachEmailSubmit({ email, message }) {
 			if (!this.invite) {
 				return
@@ -287,19 +322,19 @@ export default {
 					email,
 					message,
 				})
-				if (!this._isMounted) {
+				if (!this.isComponentMounted) {
 					return
 				}
 				showSuccess(this.t('contacts', 'Invite sent to {email}', { email }))
 				this.showAttachEmailForm = false
 			} catch (error) {
-				if (!this._isMounted) {
+				if (!this.isComponentMounted) {
 					return
 				}
 				const serverMessage = error?.response?.data?.message
 				showError(serverMessage || this.t('contacts', 'Could not send invite'))
 			} finally {
-				if (this._isMounted) {
+				if (this.isComponentMounted) {
 					this.submittingAttachEmail = false
 				}
 			}
