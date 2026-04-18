@@ -607,7 +607,7 @@ class FederatedInvitesController extends PageController {
 
 		try {
 			/**
-			 * @var OCP\OCM\ICapabilityAwareOCMProvider $provider
+			 * @var \OCP\OCM\ICapabilityAwareOCMProvider $provider
 			 *
 			 */
 			$provider = $this->discovery->discover($base);
@@ -654,7 +654,11 @@ class FederatedInvitesController extends PageController {
 		Util::addStyle(Application::APP_ID, 'contacts-wayf');
 		try {
 			$federations = $this->wayfProvider->getMeshProvidersFromCache();
-			$providerDomain = parse_url($this->urlGenerator->getBaseUrl(), PHP_URL_HOST);
+			$providerDomain = trim((string)$this->request->getParam('providerDomain', ''));
+			if ($providerDomain === '') {
+				$baseHost = parse_url($this->urlGenerator->getBaseUrl(), PHP_URL_HOST);
+				$providerDomain = is_string($baseHost) ? $baseHost : '';
+			}
 			$this->initialState->provideInitialState('wayf', [
 				'federations' => $federations,
 				'providerDomain' => $providerDomain,
