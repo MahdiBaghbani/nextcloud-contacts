@@ -25,9 +25,9 @@
 						<span class="info-label">{{ t('contacts', 'Label') }}</span>
 						<span class="info-value" data-testid="ocm-invite-detail-label">{{ invite.recipientName }}</span>
 					</div>
-					<div class="info-row">
+					<div v-if="invite.recipientEmail" class="info-row">
 						<span class="info-label">{{ t('contacts', 'Sent to') }}</span>
-						<span class="info-value" data-testid="ocm-invite-detail-email">{{ invite.recipientEmail || t('contacts', 'No email (link-only)') }}</span>
+						<span class="info-value" data-testid="ocm-invite-detail-email">{{ invite.recipientEmail }}</span>
 					</div>
 					<div class="info-row">
 						<span class="info-label">{{ t('contacts', 'Created') }}</span>
