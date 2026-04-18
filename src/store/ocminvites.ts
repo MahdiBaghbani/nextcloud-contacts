@@ -130,14 +130,19 @@ const useOcmInvitesStore = defineStore('ocminvites', {
 				note: invite.note || '',
 				ccSender: invite.ccSender || false,
 			}
+			let response
 			try {
-				const response = await axios.post(url, payload)
-				await this.fetchOcmInvites()
-				return response
+				response = await axios.post(url, payload)
 			} catch (error) {
 				logger.error('Error creating a new OCM invite for ' + invite.email)
 				throw error
 			}
+			try {
+				await this.fetchOcmInvites()
+			} catch (error) {
+				logger.error('Invite created but refresh failed for ' + invite.email)
+			}
+			return response
 		},
 
 		async attachEmailAndSendOcmInvite({ token, email, message }: AttachEmailPayload) {

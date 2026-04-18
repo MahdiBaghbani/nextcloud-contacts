@@ -705,9 +705,9 @@ const _default = {
 			}
 			this.loadingUpdate = true
 			try {
-				const url = generateUrl('/apps/contacts/ocm/invitations/{token}/accept', { token: inviteToken })
+				const url = generateUrl('/apps/contacts/ocm/invitations/{token}/accept', { token: this.inviteToken })
 				const response = await axios.patch(url, {
-					provider: inviteProvider,
+					provider: this.inviteProvider,
 				})
 				this.showInviteAcceptDialog = false
 				window.open(response.data.contact, '_self')
@@ -715,7 +715,6 @@ const _default = {
 				const serverMessage = error?.response?.data?.message
 				logger.error('Could not accept invite: ' + (serverMessage || 'unknown'), { error })
 				showError(serverMessage || this.t('contacts', 'Could not accept invite'))
-				this.showInviteAcceptDialog = false
 			} finally {
 				this.loadingUpdate = false
 			}
@@ -736,7 +735,6 @@ const _default = {
 				const serverMessage = error?.response?.data?.message
 				logger.error('Could not accept invite: ' + (serverMessage || 'unknown'), { error })
 				showError(serverMessage || this.t('contacts', 'Could not accept invite'))
-				this.showManualInvite = false
 			} finally {
 				this.loadingUpdate = false
 			}
@@ -765,7 +763,6 @@ const _default = {
 				this.cancelNewInvite()
 				window.open(response.data.invite, '_self')
 			} catch (error) {
-				this.cancelNewInvite()
 				const serverMessage = error?.response?.data?.message
 				showError(serverMessage || this.t('contacts', 'Could not create invite'))
 			} finally {
